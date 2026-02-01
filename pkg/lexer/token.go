@@ -23,6 +23,7 @@ const (
 	TokenFor     // for
 	TokenTypedef // typedef
 	TokenStruct  // struct
+	TokenSizeof  // sizeof
 
 	// Operators
 	TokenPlus      // +
@@ -93,6 +94,7 @@ var tokenNames = map[TokenType]string{
 	TokenFor:           "for",
 	TokenTypedef:       "typedef",
 	TokenStruct:        "struct",
+	TokenSizeof:        "sizeof",
 	TokenPlus:          "+",
 	TokenMinus:         "-",
 	TokenStar:          "*",
@@ -166,6 +168,7 @@ var keywords = map[string]TokenType{
 	"for":     TokenFor,
 	"typedef": TokenTypedef,
 	"struct":  TokenStruct,
+	"sizeof":  TokenSizeof,
 }
 
 // LookupIdent returns the token type for an identifier (keyword or IDENT)

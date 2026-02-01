@@ -140,9 +140,19 @@ type Index struct {
 
 // Member represents member access: s.x or p->y
 type Member struct {
-	Expr   Expr
-	Name   string
+	Expr    Expr
+	Name    string
 	IsArrow bool // true for ->, false for .
+}
+
+// SizeofExpr represents sizeof applied to an expression
+type SizeofExpr struct {
+	Expr Expr
+}
+
+// SizeofType represents sizeof applied to a type
+type SizeofType struct {
+	TypeName string
 }
 
 // Return represents a return statement
@@ -189,6 +199,12 @@ func (Index) implCabsExpr() {}
 
 func (Member) implCabsNode() {}
 func (Member) implCabsExpr() {}
+
+func (SizeofExpr) implCabsNode() {}
+func (SizeofExpr) implCabsExpr() {}
+
+func (SizeofType) implCabsNode() {}
+func (SizeofType) implCabsExpr() {}
 
 func (Return) implCabsNode() {}
 func (Return) implCabsStmt() {}

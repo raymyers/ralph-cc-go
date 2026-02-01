@@ -887,6 +887,70 @@ func TestCommaOperator(t *testing.T) {
 	}
 }
 
+func TestSizeofExpr(t *testing.T) {
+	tests := []struct {
+		name  string
+		input string
+	}{
+		{"sizeof variable", "int f() { return sizeof x; }"},
+		{"sizeof parenthesized expr", "int f() { return sizeof(x); }"},
+		{"sizeof unary expr", "int f() { return sizeof *p; }"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			l := lexer.New(tt.input)
+			p := New(l)
+			def := p.ParseDefinition()
+
+			if len(p.Errors()) > 0 {
+				t.Fatalf("parser errors: %v", p.Errors())
+			}
+
+			funDef := def.(cabs.FunDef)
+			ret := funDef.Body.Items[0].(cabs.Return)
+			_, ok := ret.Expr.(cabs.SizeofExpr)
+			if !ok {
+				t.Fatalf("expected SizeofExpr, got %T", ret.Expr)
+			}
+		})
+	}
+}
+
+func TestSizeofType(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    string
+		typeName string
+	}{
+		{"sizeof int", "int f() { return sizeof(int); }", "int"},
+		{"sizeof void", "int f() { return sizeof(void); }", "void"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			l := lexer.New(tt.input)
+			p := New(l)
+			def := p.ParseDefinition()
+
+			if len(p.Errors()) > 0 {
+				t.Fatalf("parser errors: %v", p.Errors())
+			}
+
+			funDef := def.(cabs.FunDef)
+			ret := funDef.Body.Items[0].(cabs.Return)
+			sizeofT, ok := ret.Expr.(cabs.SizeofType)
+			if !ok {
+				t.Fatalf("expected SizeofType, got %T", ret.Expr)
+			}
+
+			if sizeofT.TypeName != tt.typeName {
+				t.Errorf("expected type name %q, got %q", tt.typeName, sizeofT.TypeName)
+			}
+		})
+	}
+}
+
 // exprString returns a string representation of an expression for testing
 func exprString(e cabs.Expr) string {
 	switch expr := e.(type) {

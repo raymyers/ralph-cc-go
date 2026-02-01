@@ -232,6 +232,8 @@ func (p *Parser) parsePrefix() cabs.Expr {
 		return p.parsePrefixUnary(cabs.OpAddrOf)
 	case lexer.TokenStar:
 		return p.parsePrefixUnary(cabs.OpDeref)
+	case lexer.TokenSizeof:
+		return p.parseSizeof()
 	default:
 		p.addError(fmt.Sprintf("expected expression, got %s", p.curToken.Type))
 		return nil
@@ -278,6 +280,48 @@ func (p *Parser) parsePrefixUnary(op cabs.UnaryOp) cabs.Expr {
 	}
 
 	return cabs.Unary{Op: op, Expr: expr}
+}
+
+// parseSizeof parses sizeof expressions: sizeof expr or sizeof(type) or sizeof(expr)
+func (p *Parser) parseSizeof() cabs.Expr {
+	p.nextToken() // consume 'sizeof'
+
+	// Check if followed by '('
+	if p.curTokenIs(lexer.TokenLParen) {
+		// Could be sizeof(type) or sizeof(expr)
+		// For now, check if the token after '(' is a type specifier
+		if p.isTypeSpecifierPeek() {
+			// sizeof(type)
+			p.nextToken() // consume '('
+			typeName := p.curToken.Literal
+			p.nextToken() // consume type name
+			if !p.curTokenIs(lexer.TokenRParen) {
+				p.addError(fmt.Sprintf("expected ')' after type in sizeof, got %s", p.curToken.Type))
+				return nil
+			}
+			p.nextToken() // consume ')'
+			return cabs.SizeofType{TypeName: typeName}
+		}
+		// sizeof(expr) - parse as expression, the parentheses will be part of the expression
+	}
+
+	// sizeof expr (unary prefix)
+	expr := p.parseExprPrec(precUnary)
+	if expr == nil {
+		return nil
+	}
+	return cabs.SizeofExpr{Expr: expr}
+}
+
+// isTypeSpecifierPeek checks if the peek token is a type specifier (for sizeof disambiguation)
+func (p *Parser) isTypeSpecifierPeek() bool {
+	switch p.peekToken.Type {
+	case lexer.TokenInt_, lexer.TokenVoid:
+		return true
+	case lexer.TokenIdent:
+		return p.typedefs[p.peekToken.Literal]
+	}
+	return false
 }
 
 // parseInfix parses infix (binary) expressions

@@ -73,9 +73,9 @@ Detailed task list to implement the parsing plan from docs/PARSING.md. The goal 
 - [x] Add tests for `&x`, `*p`
 
 ### M2.11: Sizeof
-- [ ] Parse `sizeof expr` and `sizeof(type)` (add to lexer)
-- [ ] Add Sizeof AST node
-- [ ] Add tests for sizeof
+- [x] Parse `sizeof expr` and `sizeof(type)` (add to lexer)
+- [x] Add Sizeof AST node
+- [x] Add tests for sizeof
 
 ### M2.12: Cast Expressions
 - [ ] Parse `(type)expr`
