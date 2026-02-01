@@ -2644,3 +2644,210 @@ func TestErrorRecoverySyncToBlockEnd(t *testing.T) {
 		t.Fatal("expected function definition despite errors")
 	}
 }
+
+func TestStructParameterType(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    string
+		expected string
+	}{
+		{
+			"struct parameter",
+			"int getx(struct Point p) { return p.x; }",
+			"struct Point",
+		},
+		{
+			"struct pointer parameter",
+			"int getx(struct Point *p) { return p->x; }",
+			"struct Point*",
+		},
+		{
+			"union parameter",
+			"int getu(union Data d) { return d.i; }",
+			"union Data",
+		},
+		{
+			"enum parameter",
+			"int gete(enum Color c) { return c; }",
+			"enum Color",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			l := lexer.New(tt.input)
+			p := New(l)
+			def := p.ParseDefinition()
+
+			if len(p.Errors()) > 0 {
+				t.Fatalf("parser errors: %v", p.Errors())
+			}
+
+			funDef := def.(cabs.FunDef)
+			if len(funDef.Params) != 1 {
+				t.Fatalf("expected 1 parameter, got %d", len(funDef.Params))
+			}
+
+			if funDef.Params[0].TypeSpec != tt.expected {
+				t.Errorf("expected type %q, got %q", tt.expected, funDef.Params[0].TypeSpec)
+			}
+		})
+	}
+}
+
+func TestStructReturnType(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    string
+		expected string
+	}{
+		{
+			"struct pointer return",
+			"struct Point *getp(int x) { return 0; }",
+			"struct Point*",
+		},
+		{
+			"struct return",
+			"struct Point getp(int x) { struct Point p; return p; }",
+			"struct Point",
+		},
+		{
+			"union pointer return",
+			"union Data *getd(int x) { return 0; }",
+			"union Data*",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			l := lexer.New(tt.input)
+			p := New(l)
+			def := p.ParseDefinition()
+
+			if len(p.Errors()) > 0 {
+				t.Fatalf("parser errors: %v", p.Errors())
+			}
+
+			funDef := def.(cabs.FunDef)
+			if funDef.ReturnType != tt.expected {
+				t.Errorf("expected return type %q, got %q", tt.expected, funDef.ReturnType)
+			}
+		})
+	}
+}
+
+func TestC99ForLoopDeclaration(t *testing.T) {
+	tests := []struct {
+		name      string
+		input     string
+		numDecls  int
+		declName  string
+		declType  string
+		hasInit   bool
+	}{
+		{
+			"simple c99 for",
+			"int f() { for (int i = 0; i < 10; i++) x++; }",
+			1, "i", "int", true,
+		},
+		{
+			"c99 for without init",
+			"int f() { for (int i; i < 10; i++) x++; }",
+			1, "i", "int", false,
+		},
+		{
+			"c99 for with pointer",
+			"int f() { for (int *p = arr; p < end; p++) x++; }",
+			1, "p", "int*", true,
+		},
+		{
+			"c99 for multiple vars",
+			"int f() { for (int i = 0, j = 10; i < j; i++, j--) x++; }",
+			2, "i", "int", true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			l := lexer.New(tt.input)
+			p := New(l)
+			def := p.ParseDefinition()
+
+			if len(p.Errors()) > 0 {
+				t.Fatalf("parser errors: %v", p.Errors())
+			}
+
+			funDef := def.(cabs.FunDef)
+			forStmt := funDef.Body.Items[0].(cabs.For)
+
+			// Should have declarations, not expression init
+			if len(forStmt.InitDecl) != tt.numDecls {
+				t.Fatalf("expected %d declarations, got %d", tt.numDecls, len(forStmt.InitDecl))
+			}
+
+			if forStmt.Init != nil {
+				t.Errorf("expected Init to be nil for C99 for-loop")
+			}
+
+			// Check first declaration
+			if forStmt.InitDecl[0].Name != tt.declName {
+				t.Errorf("expected decl name %q, got %q", tt.declName, forStmt.InitDecl[0].Name)
+			}
+			if forStmt.InitDecl[0].TypeSpec != tt.declType {
+				t.Errorf("expected decl type %q, got %q", tt.declType, forStmt.InitDecl[0].TypeSpec)
+			}
+			if tt.hasInit && forStmt.InitDecl[0].Initializer == nil {
+				t.Errorf("expected initializer")
+			}
+			if !tt.hasInit && forStmt.InitDecl[0].Initializer != nil {
+				t.Errorf("did not expect initializer")
+			}
+		})
+	}
+}
+
+func TestStructDefinitionVsReturnType(t *testing.T) {
+	// Test that struct definitions are still parsed correctly
+	tests := []struct {
+		name    string
+		input   string
+		isStruct bool
+	}{
+		{
+			"struct definition",
+			"struct Point { int x; int y; };",
+			true,
+		},
+		{
+			"struct forward declaration",
+			"struct Point;",
+			true,
+		},
+		{
+			"function returning struct pointer",
+			"struct Point *make_point(int x) { return 0; }",
+			false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			l := lexer.New(tt.input)
+			p := New(l)
+			def := p.ParseDefinition()
+
+			if len(p.Errors()) > 0 {
+				t.Fatalf("parser errors: %v", p.Errors())
+			}
+
+			_, isStruct := def.(cabs.StructDef)
+			if isStruct != tt.isStruct {
+				if tt.isStruct {
+					t.Errorf("expected StructDef, got %T", def)
+				} else {
+					t.Errorf("expected FunDef, got %T", def)
+				}
+			}
+		})
+	}
+}

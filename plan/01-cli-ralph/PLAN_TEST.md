@@ -6,17 +6,20 @@ Gaps identified from spot-checking ralph-cc parser against CompCert ccomp -dpars
 
 These features parse correctly in CompCert but fail in ralph-cc:
 
-[ ] **struct/union types in function parameters** - `int getx(struct Point p)` fails
+[x] **struct/union types in function parameters** - `int getx(struct Point p)` fails
     - Error: "expected ')' after parameters, got IDENT"
     - Need to support `struct Name` as a type specifier in parameter lists
+    - FIXED: Added struct/union/enum name handling in parseParameter()
 
-[ ] **C99 for-loop declarations** - `for (int i = 0; i < n; i++)` fails  
+[x] **C99 for-loop declarations** - `for (int i = 0; i < n; i++)` fails  
     - Error: "expected expression, got int"
     - Need to allow declaration as first part of for loop
+    - FIXED: Added parseForDeclaration() and InitDecl field in For struct
 
-[ ] **Forward struct references in function signatures** - `struct Point *getp(struct Point *p)` fails
+[x] **Forward struct references in function signatures** - `struct Point *getp(struct Point *p)` fails
     - Error: "expected '{' or ';' after struct/union name, got *"
     - Need to support incomplete struct types (forward declarations) in return types and parameters
+    - FIXED: Added peekPeekToken for lookahead, proper distinction between struct def vs function return type
 
 ## Output Format Differences (Cosmetic - Low Priority)
 

@@ -174,7 +174,10 @@ func (p *Printer) printStmt(stmt Stmt) {
 		fmt.Fprintln(p.w, ");")
 	case For:
 		fmt.Fprint(p.w, "for (")
-		if s.Init != nil {
+		if len(s.InitDecl) > 0 {
+			// C99 for-loop declaration
+			p.printDeclList(s.InitDecl)
+		} else if s.Init != nil {
 			p.printExpr(s.Init)
 		}
 		fmt.Fprint(p.w, "; ")
@@ -222,9 +225,14 @@ func (p *Printer) printStmt(stmt Stmt) {
 		fmt.Fprintf(p.w, "%s:\n", s.Name)
 		p.printStmt(s.Stmt)
 	case Block:
-		// Nested block
+		// Nested block (value type)
 		p.indent--
 		p.printBlock(&s)
+		p.indent++
+	case *Block:
+		// Nested block (pointer type)
+		p.indent--
+		p.printBlock(s)
 		p.indent++
 	case DeclStmt:
 		for _, decl := range s.Decls {
@@ -248,6 +256,27 @@ func (p *Printer) printStmt(stmt Stmt) {
 		}
 	default:
 		fmt.Fprintf(p.w, "/* unknown stmt %T */;\n", stmt)
+	}
+}
+
+// printDeclList prints a list of declarations for C99 for-loop init (no trailing semicolon)
+func (p *Printer) printDeclList(decls []Decl) {
+	for i, decl := range decls {
+		if i > 0 {
+			fmt.Fprint(p.w, ", ")
+		}
+		fmt.Fprintf(p.w, "%s %s", decl.TypeSpec, decl.Name)
+		for _, dim := range decl.ArrayDims {
+			fmt.Fprint(p.w, "[")
+			if dim != nil {
+				p.printExpr(dim)
+			}
+			fmt.Fprint(p.w, "]")
+		}
+		if decl.Initializer != nil {
+			fmt.Fprint(p.w, " = ")
+			p.printExpr(decl.Initializer)
+		}
 	}
 }
 

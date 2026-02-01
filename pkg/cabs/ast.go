@@ -192,10 +192,11 @@ type DoWhile struct {
 
 // For represents a for loop
 type For struct {
-	Init Expr // may be nil
-	Cond Expr // may be nil (infinite loop)
-	Step Expr // may be nil
-	Body Stmt
+	Init     Expr   // may be nil (mutually exclusive with InitDecl)
+	InitDecl []Decl // C99 for-loop declaration (mutually exclusive with Init)
+	Cond     Expr   // may be nil (infinite loop)
+	Step     Expr   // may be nil
+	Body     Stmt
 }
 
 // Break represents a break statement
