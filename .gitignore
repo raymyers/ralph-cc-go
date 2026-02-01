@@ -1,5 +1,6 @@
 plan/*/logs
 bin/
+coverage/
 
 # Debug phase output suffixes (from docs/PHASES.md)
 *.parsed.c
