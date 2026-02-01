@@ -657,16 +657,23 @@ func (p *Parser) parseDeclarationStatement() cabs.Stmt {
 			p.nextToken()
 
 			// Check for array declarator
+			var arrayDims []cabs.Expr
 			for p.curTokenIs(lexer.TokenLBracket) {
 				p.nextToken() // consume '['
-				// For now, skip the array size expression
-				for !p.curTokenIs(lexer.TokenRBracket) && !p.curTokenIs(lexer.TokenEOF) {
-					p.nextToken()
+				if p.curTokenIs(lexer.TokenRBracket) {
+					// Empty array dimension: int arr[]
+					arrayDims = append(arrayDims, nil)
+				} else {
+					// Parse size expression (supports VLAs and constant expressions)
+					sizeExpr := p.parseExprPrec(precAssign)
+					if sizeExpr == nil {
+						return nil
+					}
+					arrayDims = append(arrayDims, sizeExpr)
 				}
 				if !p.expect(lexer.TokenRBracket) {
 					return nil
 				}
-				typeSpec = typeSpec + "[]"
 			}
 
 			var init cabs.Expr
@@ -682,6 +689,7 @@ func (p *Parser) parseDeclarationStatement() cabs.Stmt {
 			decls = append(decls, cabs.Decl{
 				TypeSpec:    typeSpec,
 				Name:        name,
+				ArrayDims:   arrayDims,
 				Initializer: init,
 			})
 		}

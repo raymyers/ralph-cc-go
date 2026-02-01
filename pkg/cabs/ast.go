@@ -250,7 +250,8 @@ type Param struct {
 type Decl struct {
 	TypeSpec    string
 	Name        string
-	Initializer Expr // nil if no initializer
+	ArrayDims   []Expr // array dimensions: nil for non-array, [nil] for int arr[], [expr] for int arr[n]
+	Initializer Expr   // nil if no initializer
 }
 
 // DeclStmt represents a declaration statement (can have multiple declarators)

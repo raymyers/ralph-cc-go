@@ -229,6 +229,14 @@ func (p *Printer) printStmt(stmt Stmt) {
 	case DeclStmt:
 		for _, decl := range s.Decls {
 			fmt.Fprintf(p.w, "%s %s", decl.TypeSpec, decl.Name)
+			// Print array dimensions
+			for _, dim := range decl.ArrayDims {
+				fmt.Fprint(p.w, "[")
+				if dim != nil {
+					p.printExpr(dim)
+				}
+				fmt.Fprint(p.w, "]")
+			}
 			if decl.Initializer != nil {
 				fmt.Fprint(p.w, " = ")
 				p.printExpr(decl.Initializer)

@@ -168,7 +168,7 @@ Detailed task list to implement the parsing plan from docs/PARSING.md. The goal 
 ### M5.2: Array Types
 - [x] Parse array declarators: `int a[10];`
 - [x] Multi-dimensional: `int a[2][3];`
-- [ ] Variable-length arrays (VLA)
+- [x] Variable-length arrays (VLA)
 - [x] Add tests
 
 ### M5.3: Struct Types

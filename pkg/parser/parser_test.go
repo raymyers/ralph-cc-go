@@ -1812,34 +1812,44 @@ func TestStorageClassSpecifiers(t *testing.T) {
 
 func TestArrayDeclaration(t *testing.T) {
 	tests := []struct {
-		name     string
-		input    string
-		typeName string
-		varName  string
+		name      string
+		input     string
+		typeName  string
+		varName   string
+		numDims   int
+		dimValues []int64 // expected dimension values (constants)
 	}{
 		{
-			name:     "simple array",
-			input:    `int f() { int arr[10]; return 0; }`,
-			typeName: "int[]",
-			varName:  "arr",
+			name:      "simple array",
+			input:     `int f() { int arr[10]; return 0; }`,
+			typeName:  "int",
+			varName:   "arr",
+			numDims:   1,
+			dimValues: []int64{10},
 		},
 		{
-			name:     "char array",
-			input:    `int f() { char buf[256]; return 0; }`,
-			typeName: "char[]",
-			varName:  "buf",
+			name:      "char array",
+			input:     `int f() { char buf[256]; return 0; }`,
+			typeName:  "char",
+			varName:   "buf",
+			numDims:   1,
+			dimValues: []int64{256},
 		},
 		{
-			name:     "multi-dimensional array",
-			input:    `int f() { int matrix[3][4]; return 0; }`,
-			typeName: "int[][]",
-			varName:  "matrix",
+			name:      "multi-dimensional array",
+			input:     `int f() { int matrix[3][4]; return 0; }`,
+			typeName:  "int",
+			varName:   "matrix",
+			numDims:   2,
+			dimValues: []int64{3, 4},
 		},
 		{
-			name:     "3d array",
-			input:    `int f() { int cube[2][3][4]; return 0; }`,
-			typeName: "int[][][]",
-			varName:  "cube",
+			name:      "3d array",
+			input:     `int f() { int cube[2][3][4]; return 0; }`,
+			typeName:  "int",
+			varName:   "cube",
+			numDims:   3,
+			dimValues: []int64{2, 3, 4},
 		},
 	}
 
@@ -1859,14 +1869,175 @@ func TestArrayDeclaration(t *testing.T) {
 				t.Fatalf("expected DeclStmt, got %T", funDef.Body.Items[0])
 			}
 
-			if declStmt.Decls[0].TypeSpec != tt.typeName {
-				t.Errorf("expected type %q, got %q", tt.typeName, declStmt.Decls[0].TypeSpec)
+			decl := declStmt.Decls[0]
+			if decl.TypeSpec != tt.typeName {
+				t.Errorf("expected type %q, got %q", tt.typeName, decl.TypeSpec)
 			}
 
-			if declStmt.Decls[0].Name != tt.varName {
-				t.Errorf("expected name %q, got %q", tt.varName, declStmt.Decls[0].Name)
+			if decl.Name != tt.varName {
+				t.Errorf("expected name %q, got %q", tt.varName, decl.Name)
+			}
+
+			if len(decl.ArrayDims) != tt.numDims {
+				t.Errorf("expected %d array dimensions, got %d", tt.numDims, len(decl.ArrayDims))
+			}
+
+			for i, expectedVal := range tt.dimValues {
+				if i >= len(decl.ArrayDims) {
+					break
+				}
+				dim := decl.ArrayDims[i]
+				if dim == nil {
+					t.Errorf("dimension %d: expected constant %d, got nil", i, expectedVal)
+					continue
+				}
+				constant, ok := dim.(cabs.Constant)
+				if !ok {
+					t.Errorf("dimension %d: expected Constant, got %T", i, dim)
+					continue
+				}
+				if constant.Value != expectedVal {
+					t.Errorf("dimension %d: expected %d, got %d", i, expectedVal, constant.Value)
+				}
 			}
 		})
+	}
+}
+
+func TestVariableLengthArray(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    string
+		typeName string
+		varName  string
+		numDims  int
+	}{
+		{
+			name:     "VLA with variable size",
+			input:    `int f(int n) { int arr[n]; return 0; }`,
+			typeName: "int",
+			varName:  "arr",
+			numDims:  1,
+		},
+		{
+			name:     "VLA with expression size",
+			input:    `int f(int n) { int arr[n + 1]; return 0; }`,
+			typeName: "int",
+			varName:  "arr",
+			numDims:  1,
+		},
+		{
+			name:     "VLA with multiplication",
+			input:    `int f(int n, int m) { int arr[n * m]; return 0; }`,
+			typeName: "int",
+			varName:  "arr",
+			numDims:  1,
+		},
+		{
+			name:     "2D VLA",
+			input:    `int f(int n, int m) { int matrix[n][m]; return 0; }`,
+			typeName: "int",
+			varName:  "matrix",
+			numDims:  2,
+		},
+		{
+			name:     "mixed VLA and constant",
+			input:    `int f(int n) { int arr[n][10]; return 0; }`,
+			typeName: "int",
+			varName:  "arr",
+			numDims:  2,
+		},
+		{
+			name:     "empty array dimension",
+			input:    `int f() { int arr[]; return 0; }`,
+			typeName: "int",
+			varName:  "arr",
+			numDims:  1,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			l := lexer.New(tt.input)
+			p := New(l)
+			def := p.ParseDefinition()
+
+			if len(p.Errors()) > 0 {
+				t.Fatalf("parser errors: %v", p.Errors())
+			}
+
+			funDef := def.(cabs.FunDef)
+			// Declarations may be at different positions depending on params
+			var declStmt cabs.DeclStmt
+			found := false
+			for _, item := range funDef.Body.Items {
+				if ds, ok := item.(cabs.DeclStmt); ok {
+					declStmt = ds
+					found = true
+					break
+				}
+			}
+			if !found {
+				t.Fatalf("no DeclStmt found in function body")
+			}
+
+			decl := declStmt.Decls[0]
+			if decl.TypeSpec != tt.typeName {
+				t.Errorf("expected type %q, got %q", tt.typeName, decl.TypeSpec)
+			}
+
+			if decl.Name != tt.varName {
+				t.Errorf("expected name %q, got %q", tt.varName, decl.Name)
+			}
+
+			if len(decl.ArrayDims) != tt.numDims {
+				t.Errorf("expected %d array dimensions, got %d", tt.numDims, len(decl.ArrayDims))
+			}
+		})
+	}
+}
+
+func TestVLADimensionExpressions(t *testing.T) {
+	// Test that VLA dimensions are correctly parsed as expressions
+	input := `int f(int n) { int arr[n + 1]; return 0; }`
+
+	l := lexer.New(input)
+	p := New(l)
+	def := p.ParseDefinition()
+
+	if len(p.Errors()) > 0 {
+		t.Fatalf("parser errors: %v", p.Errors())
+	}
+
+	funDef := def.(cabs.FunDef)
+	declStmt, ok := funDef.Body.Items[0].(cabs.DeclStmt)
+	if !ok {
+		t.Fatalf("expected DeclStmt, got %T", funDef.Body.Items[0])
+	}
+
+	decl := declStmt.Decls[0]
+	if len(decl.ArrayDims) != 1 {
+		t.Fatalf("expected 1 dimension, got %d", len(decl.ArrayDims))
+	}
+
+	// The dimension should be a Binary expression (n + 1)
+	binary, ok := decl.ArrayDims[0].(cabs.Binary)
+	if !ok {
+		t.Fatalf("expected Binary expression for VLA dimension, got %T", decl.ArrayDims[0])
+	}
+
+	if binary.Op != cabs.OpAdd {
+		t.Errorf("expected OpAdd, got %v", binary.Op)
+	}
+
+	// Left side should be variable 'n'
+	if v, ok := binary.Left.(cabs.Variable); !ok || v.Name != "n" {
+		t.Errorf("expected Variable 'n' on left, got %T", binary.Left)
+	}
+
+	// Right side should be constant 1
+	if c, ok := binary.Right.(cabs.Constant); !ok || c.Value != 1 {
+		t.Errorf("expected Constant 1 on right, got %T", binary.Right)
 	}
 }
 
