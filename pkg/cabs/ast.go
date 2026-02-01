@@ -405,3 +405,10 @@ func (UnionDef) implDefinition() {}
 
 func (EnumDef) implCabsNode()    {}
 func (EnumDef) implDefinition() {}
+
+// Program represents a complete translation unit (file)
+type Program struct {
+	Definitions []Definition
+}
+
+func (Program) implCabsNode() {}

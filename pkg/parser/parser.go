@@ -1366,3 +1366,35 @@ func (p *Parser) curPrecedence() int {
 func (p *Parser) peekPrecedence() int {
 	return tokenPrecedence(p.peekToken.Type)
 }
+
+// ParseProgram parses a complete translation unit (file) containing multiple definitions
+func (p *Parser) ParseProgram() *cabs.Program {
+	program := &cabs.Program{
+		Definitions: []cabs.Definition{},
+	}
+
+	for !p.curTokenIs(lexer.TokenEOF) {
+		def := p.ParseDefinition()
+		if def != nil {
+			program.Definitions = append(program.Definitions, def)
+		} else {
+			// Skip to next definition on error
+			p.skipToNextDefinition()
+		}
+	}
+
+	return program
+}
+
+// skipToNextDefinition skips tokens until we find a likely start of a new definition
+func (p *Parser) skipToNextDefinition() {
+	for !p.curTokenIs(lexer.TokenEOF) {
+		// Stop at tokens that typically start definitions
+		if p.isTypeSpecifier() || p.curTokenIs(lexer.TokenTypedef) ||
+			p.curTokenIs(lexer.TokenStruct) || p.curTokenIs(lexer.TokenUnion) ||
+			p.curTokenIs(lexer.TokenEnum) || p.isStorageClassSpecifier() {
+			return
+		}
+		p.nextToken()
+	}
+}

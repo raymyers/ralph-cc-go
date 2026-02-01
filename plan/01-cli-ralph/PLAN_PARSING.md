@@ -197,17 +197,17 @@ Detailed task list to implement the parsing plan from docs/PARSING.md. The goal 
 ## M6: Full Grammar
 
 ### M6.1: Translation Unit
-- [ ] Parse multiple top-level definitions
-- [ ] Handle forward declarations
-- [ ] Add tests for multi-function files
+- [x] Parse multiple top-level definitions
+- [x] Handle forward declarations
+- [x] Add tests for multi-function files
 
 ### M6.2: Preprocessor Artifacts
 - [ ] Handle `#line` directives for source locations
 - [ ] (Preprocessing itself done externally)
 
 ### M6.3: CLI Integration
-- [ ] Wire parser to `-dparse` flag
-- [ ] Output AST in format matching CompCert's `-dparse`
+- [x] Wire parser to `-dparse` flag
+- [x] Output AST in format matching CompCert's `-dparse`
 - [ ] Add integration tests comparing with CompCert output
 
 ### M6.4: Error Recovery

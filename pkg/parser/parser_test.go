@@ -2164,3 +2164,97 @@ func TestEnumDefinition(t *testing.T) {
 		})
 	}
 }
+
+func TestParseProgram(t *testing.T) {
+	tests := []struct {
+		name          string
+		input         string
+		expectedDefs  int
+		expectedTypes []string // types of definitions: "FunDef", "TypedefDef", "StructDef", etc.
+	}{
+		{
+			name:          "single function",
+			input:         `int main() { return 0; }`,
+			expectedDefs:  1,
+			expectedTypes: []string{"FunDef"},
+		},
+		{
+			name: "two functions",
+			input: `int add(int a, int b) { return a + b; }
+                    int main() { return 0; }`,
+			expectedDefs:  2,
+			expectedTypes: []string{"FunDef", "FunDef"},
+		},
+		{
+			name: "typedef and function",
+			input: `typedef int myint;
+                    myint f() { return 0; }`,
+			expectedDefs:  2,
+			expectedTypes: []string{"TypedefDef", "FunDef"},
+		},
+		{
+			name: "struct and function",
+			input: `struct Point { int x; int y; };
+                    int main() { return 0; }`,
+			expectedDefs:  2,
+			expectedTypes: []string{"StructDef", "FunDef"},
+		},
+		{
+			name: "multiple definitions",
+			input: `typedef int myint;
+                    struct Point { int x; int y; };
+                    enum Color { RED, GREEN, BLUE };
+                    union Value { int i; float f; };
+                    int helper() { return 1; }
+                    int main() { return 0; }`,
+			expectedDefs:  6,
+			expectedTypes: []string{"TypedefDef", "StructDef", "EnumDef", "UnionDef", "FunDef", "FunDef"},
+		},
+		{
+			name:          "empty program",
+			input:         ``,
+			expectedDefs:  0,
+			expectedTypes: []string{},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			l := lexer.New(tt.input)
+			p := New(l)
+			program := p.ParseProgram()
+
+			if len(p.Errors()) > 0 {
+				t.Fatalf("parser errors: %v", p.Errors())
+			}
+
+			if len(program.Definitions) != tt.expectedDefs {
+				t.Fatalf("expected %d definitions, got %d", tt.expectedDefs, len(program.Definitions))
+			}
+
+			for i, expectedType := range tt.expectedTypes {
+				actualType := defTypeName(program.Definitions[i])
+				if actualType != expectedType {
+					t.Errorf("definition %d: expected %s, got %s", i, expectedType, actualType)
+				}
+			}
+		})
+	}
+}
+
+func defTypeName(def cabs.Definition) string {
+	switch def.(type) {
+	case cabs.FunDef:
+		return "FunDef"
+	case cabs.TypedefDef:
+		return "TypedefDef"
+	case cabs.StructDef:
+		return "StructDef"
+	case cabs.UnionDef:
+		return "UnionDef"
+	case cabs.EnumDef:
+		return "EnumDef"
+	default:
+		return fmt.Sprintf("unknown(%T)", def)
+	}
+}
