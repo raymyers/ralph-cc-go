@@ -951,6 +951,73 @@ func TestSizeofType(t *testing.T) {
 	}
 }
 
+func TestCastExpression(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    string
+		typeName string
+	}{
+		{"cast int", "int f() { return (int)x; }", "int"},
+		{"cast void", "int f() { return (void)x; }", "void"},
+		{"cast with literal", "int f() { return (int)42; }", "int"},
+		{"cast with expression", "int f() { return (int)(a + b); }", "int"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			l := lexer.New(tt.input)
+			p := New(l)
+			def := p.ParseDefinition()
+
+			if len(p.Errors()) > 0 {
+				t.Fatalf("parser errors: %v", p.Errors())
+			}
+
+			funDef := def.(cabs.FunDef)
+			ret := funDef.Body.Items[0].(cabs.Return)
+			cast, ok := ret.Expr.(cabs.Cast)
+			if !ok {
+				t.Fatalf("expected Cast, got %T", ret.Expr)
+			}
+
+			if cast.TypeName != tt.typeName {
+				t.Errorf("expected type name %q, got %q", tt.typeName, cast.TypeName)
+			}
+		})
+	}
+}
+
+func TestCastPrecedence(t *testing.T) {
+	// Cast should have higher precedence than binary operators
+	input := "int f() { return (int)a + b; }"
+
+	l := lexer.New(input)
+	p := New(l)
+	def := p.ParseDefinition()
+
+	if len(p.Errors()) > 0 {
+		t.Fatalf("parser errors: %v", p.Errors())
+	}
+
+	funDef := def.(cabs.FunDef)
+	ret := funDef.Body.Items[0].(cabs.Return)
+
+	// Should be parsed as ((int)a) + b, not (int)(a + b)
+	binary, ok := ret.Expr.(cabs.Binary)
+	if !ok {
+		t.Fatalf("expected Binary at top level, got %T", ret.Expr)
+	}
+
+	if binary.Op != cabs.OpAdd {
+		t.Errorf("expected + operator, got %v", binary.Op)
+	}
+
+	_, ok = binary.Left.(cabs.Cast)
+	if !ok {
+		t.Errorf("expected Cast as left operand, got %T", binary.Left)
+	}
+}
+
 // exprString returns a string representation of an expression for testing
 func exprString(e cabs.Expr) string {
 	switch expr := e.(type) {

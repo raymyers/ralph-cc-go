@@ -78,9 +78,9 @@ Detailed task list to implement the parsing plan from docs/PARSING.md. The goal 
 - [x] Add tests for sizeof
 
 ### M2.12: Cast Expressions
-- [ ] Parse `(type)expr`
-- [ ] Add Cast AST node
-- [ ] Add tests for casts
+- [x] Parse `(type)expr`
+- [x] Add Cast AST node
+- [x] Add tests for casts
 
 ---
 

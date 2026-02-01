@@ -255,6 +255,12 @@ func (p *Parser) parseIdentifier() cabs.Expr {
 }
 
 func (p *Parser) parseGroupedExpression() cabs.Expr {
+	// Disambiguate: (type)expr vs (expr)
+	// If we see '(' followed by a type specifier followed by ')', it's a cast
+	if p.isTypeSpecifierPeek() {
+		return p.parseCast()
+	}
+
 	p.nextToken() // consume '('
 
 	expr := p.parseExpression()
@@ -269,6 +275,27 @@ func (p *Parser) parseGroupedExpression() cabs.Expr {
 	p.nextToken() // consume ')'
 
 	return cabs.Paren{Expr: expr}
+}
+
+// parseCast parses a cast expression: (type)expr
+func (p *Parser) parseCast() cabs.Expr {
+	p.nextToken() // consume '('
+	typeName := p.curToken.Literal
+	p.nextToken() // consume type name
+
+	if !p.curTokenIs(lexer.TokenRParen) {
+		p.addError(fmt.Sprintf("expected ')' after type in cast, got %s", p.curToken.Type))
+		return nil
+	}
+	p.nextToken() // consume ')'
+
+	// Cast has same precedence as unary operators
+	expr := p.parseExprPrec(precUnary)
+	if expr == nil {
+		return nil
+	}
+
+	return cabs.Cast{TypeName: typeName, Expr: expr}
 }
 
 func (p *Parser) parsePrefixUnary(op cabs.UnaryOp) cabs.Expr {

@@ -155,6 +155,12 @@ type SizeofType struct {
 	TypeName string
 }
 
+// Cast represents a type cast: (type)expr
+type Cast struct {
+	TypeName string
+	Expr     Expr
+}
+
 // Return represents a return statement
 type Return struct {
 	Expr Expr // nil for bare return
@@ -205,6 +211,9 @@ func (SizeofExpr) implCabsExpr() {}
 
 func (SizeofType) implCabsNode() {}
 func (SizeofType) implCabsExpr() {}
+
+func (Cast) implCabsNode() {}
+func (Cast) implCabsExpr() {}
 
 func (Return) implCabsNode() {}
 func (Return) implCabsStmt() {}
