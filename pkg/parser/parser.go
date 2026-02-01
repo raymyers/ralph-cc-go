@@ -170,6 +170,10 @@ func (p *Parser) parseStatement() cabs.Stmt {
 		return p.parseDoWhileStatement()
 	case lexer.TokenFor:
 		return p.parseForStatement()
+	case lexer.TokenBreak:
+		return p.parseBreakStatement()
+	case lexer.TokenContinue:
+		return p.parseContinueStatement()
 	case lexer.TokenLBrace:
 		return p.parseBlock()
 	default:
@@ -322,6 +326,26 @@ func (p *Parser) parseForStatement() cabs.Stmt {
 	}
 
 	return cabs.For{Init: init, Cond: cond, Step: step, Body: body}
+}
+
+func (p *Parser) parseBreakStatement() cabs.Stmt {
+	p.nextToken() // consume 'break'
+
+	if !p.expect(lexer.TokenSemicolon) {
+		return nil
+	}
+
+	return cabs.Break{}
+}
+
+func (p *Parser) parseContinueStatement() cabs.Stmt {
+	p.nextToken() // consume 'continue'
+
+	if !p.expect(lexer.TokenSemicolon) {
+		return nil
+	}
+
+	return cabs.Continue{}
 }
 
 func (p *Parser) parseReturnStatement() cabs.Stmt {

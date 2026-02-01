@@ -198,6 +198,12 @@ type For struct {
 	Body Stmt
 }
 
+// Break represents a break statement
+type Break struct{}
+
+// Continue represents a continue statement
+type Continue struct{}
+
 // Block represents a compound statement (block)
 type Block struct {
 	Items []Stmt
@@ -264,6 +270,12 @@ func (DoWhile) implCabsStmt() {}
 
 func (For) implCabsNode() {}
 func (For) implCabsStmt() {}
+
+func (Break) implCabsNode() {}
+func (Break) implCabsStmt() {}
+
+func (Continue) implCabsNode() {}
+func (Continue) implCabsStmt() {}
 
 func (Block) implCabsNode() {}
 func (Block) implCabsStmt() {}

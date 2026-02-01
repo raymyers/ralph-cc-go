@@ -115,9 +115,9 @@ Detailed task list to implement the parsing plan from docs/PARSING.md. The goal 
 - [ ] Add tests for switch
 
 ### M3.6: Break/Continue
-- [ ] Add Break, Continue AST nodes
-- [ ] Parse `break;`, `continue;` (add keywords to lexer)
-- [ ] Add tests
+- [x] Add Break, Continue AST nodes
+- [x] Parse `break;`, `continue;` (add keywords to lexer)
+- [x] Add tests
 
 ### M3.7: Goto/Labels
 - [ ] Add Goto, Label AST nodes

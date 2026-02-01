@@ -20,9 +20,11 @@ const (
 	TokenIf      // if
 	TokenElse    // else
 	TokenWhile   // while
-	TokenDo      // do
-	TokenFor     // for
-	TokenTypedef // typedef
+	TokenDo       // do
+	TokenFor      // for
+	TokenBreak    // break
+	TokenContinue // continue
+	TokenTypedef  // typedef
 	TokenStruct  // struct
 	TokenSizeof  // sizeof
 
@@ -94,6 +96,8 @@ var tokenNames = map[TokenType]string{
 	TokenWhile:         "while",
 	TokenDo:            "do",
 	TokenFor:           "for",
+	TokenBreak:         "break",
+	TokenContinue:      "continue",
 	TokenTypedef:       "typedef",
 	TokenStruct:        "struct",
 	TokenSizeof:        "sizeof",
@@ -167,9 +171,11 @@ var keywords = map[string]TokenType{
 	"if":      TokenIf,
 	"else":    TokenElse,
 	"while":   TokenWhile,
-	"do":      TokenDo,
-	"for":     TokenFor,
-	"typedef": TokenTypedef,
+	"do":       TokenDo,
+	"for":      TokenFor,
+	"break":    TokenBreak,
+	"continue": TokenContinue,
+	"typedef":  TokenTypedef,
 	"struct":  TokenStruct,
 	"sizeof":  TokenSizeof,
 }

@@ -1130,6 +1130,78 @@ func TestForStatement(t *testing.T) {
 	}
 }
 
+func TestBreakStatement(t *testing.T) {
+	input := `int f() { while (1) { break; } }`
+
+	l := lexer.New(input)
+	p := New(l)
+	def := p.ParseDefinition()
+
+	if len(p.Errors()) > 0 {
+		t.Fatalf("parser errors: %v", p.Errors())
+	}
+
+	funDef := def.(cabs.FunDef)
+	whileStmt := funDef.Body.Items[0].(cabs.While)
+	block := whileStmt.Body.(*cabs.Block)
+
+	_, ok := block.Items[0].(cabs.Break)
+	if !ok {
+		t.Fatalf("expected Break, got %T", block.Items[0])
+	}
+}
+
+func TestContinueStatement(t *testing.T) {
+	input := `int f() { while (1) { continue; } }`
+
+	l := lexer.New(input)
+	p := New(l)
+	def := p.ParseDefinition()
+
+	if len(p.Errors()) > 0 {
+		t.Fatalf("parser errors: %v", p.Errors())
+	}
+
+	funDef := def.(cabs.FunDef)
+	whileStmt := funDef.Body.Items[0].(cabs.While)
+	block := whileStmt.Body.(*cabs.Block)
+
+	_, ok := block.Items[0].(cabs.Continue)
+	if !ok {
+		t.Fatalf("expected Continue, got %T", block.Items[0])
+	}
+}
+
+func TestBreakContinueInFor(t *testing.T) {
+	input := `int f() { for (;;) { if (x) break; continue; } }`
+
+	l := lexer.New(input)
+	p := New(l)
+	def := p.ParseDefinition()
+
+	if len(p.Errors()) > 0 {
+		t.Fatalf("parser errors: %v", p.Errors())
+	}
+
+	funDef := def.(cabs.FunDef)
+	forStmt := funDef.Body.Items[0].(cabs.For)
+	block := forStmt.Body.(*cabs.Block)
+
+	if len(block.Items) != 2 {
+		t.Fatalf("expected 2 statements in for body, got %d", len(block.Items))
+	}
+
+	_, ok := block.Items[0].(cabs.If)
+	if !ok {
+		t.Errorf("expected If, got %T", block.Items[0])
+	}
+
+	_, ok = block.Items[1].(cabs.Continue)
+	if !ok {
+		t.Errorf("expected Continue, got %T", block.Items[1])
+	}
+}
+
 func TestForStatementOptionalParts(t *testing.T) {
 	input := "int f() { for (;;) return 1; }"
 
