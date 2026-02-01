@@ -130,26 +130,28 @@ RTLgen transforms CminorSel to RTL by:
 
 **Notes:** Created InstrBuilder integrating CFGBuilder and RegAllocator. TranslateUnaryOp, TranslateBinaryOp, TranslateConstant, TranslateAddressingMode convert CminorSel to RTL types. Emit methods for all instruction types (Op, Move, Const, Load, Store, Call, Tailcall, Cond, Jumptable, Return, Nop). 16 test functions verify translation and emission.
 
-## Milestone 5: Expression Translation
+## Milestone 5: Expression Translation ✅
 
 **Goal:** Translate CminorSel expressions to RTL instruction sequences
 
 ### Tasks
 
-- [ ] Create `pkg/rtlgen/expr.go`
-- [ ] Implement expression evaluation order:
-  - [ ] Left-to-right for arguments
-  - [ ] Compute subexpressions first
-- [ ] Handle nested expressions:
-  - [ ] Generate temporaries
-  - [ ] Chain instructions
-- [ ] Handle addressof:
-  - [ ] Stack slot address
-  - [ ] Global address
-- [ ] Handle conditional expressions:
-  - [ ] Short-circuit evaluation
-  - [ ] Join point
-- [ ] Add tests for expression translation
+- [x] Create `pkg/rtlgen/expr.go`
+- [x] Implement expression evaluation order:
+  - [x] Left-to-right for arguments
+  - [x] Compute subexpressions first
+- [x] Handle nested expressions:
+  - [x] Generate temporaries
+  - [x] Chain instructions
+- [x] Handle addressof:
+  - [x] Stack slot address
+  - [x] Global address
+- [x] Handle conditional expressions:
+  - [x] Short-circuit evaluation
+  - [x] Join point
+- [x] Add tests for expression translation
+
+**Notes:** Created ExprTranslator with backward-chaining instruction generation. Handles Evar, Econst, Eunop, Ebinop, Eload, Econdition, Elet/Eletvar, Eaddshift/Esubshift. TranslateCond for branching with CondAnd/CondOr short-circuit evaluation. Let binding stack for de Bruijn indices. 14 test functions verify expression translation.
 
 ## Milestone 6: Statement Translation
 
