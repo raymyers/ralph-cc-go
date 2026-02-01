@@ -23,6 +23,19 @@ type IntegrationTestFile struct {
 	Tests []IntegrationTestSpec `yaml:"tests"`
 }
 
+// E2EAsmTestSpec represents a single end-to-end ASM test case
+type E2EAsmTestSpec struct {
+	Name   string   `yaml:"name"`
+	Input  string   `yaml:"input"`
+	Expect []string `yaml:"expect"` // Strings that must appear in output
+	Skip   string   `yaml:"skip,omitempty"`
+}
+
+// E2EAsmTestFile represents the e2e_asm.yaml file structure
+type E2EAsmTestFile struct {
+	Tests []E2EAsmTestSpec `yaml:"tests"`
+}
+
 // findCompCert looks for the ccomp binary in common locations
 func findCompCert() (string, bool) {
 	// Check if COMPCERT environment variable is set
@@ -211,6 +224,52 @@ func TestIntegrationDParseBasic(t *testing.T) {
 
 			output := out.String()
 			for _, exp := range tc.expect {
+				if !strings.Contains(output, exp) {
+					t.Errorf("expected output to contain %q\nGot:\n%s", exp, output)
+				}
+			}
+		})
+	}
+}
+
+// TestE2EAsmYAML tests end-to-end C to ARM64 assembly generation using yaml test cases
+func TestE2EAsmYAML(t *testing.T) {
+	// Load test cases from YAML
+	data, err := os.ReadFile("../../testdata/e2e_asm.yaml")
+	if err != nil {
+		t.Fatalf("e2e_asm.yaml not found: %v", err)
+	}
+
+	var testFile E2EAsmTestFile
+	if err := yaml.Unmarshal(data, &testFile); err != nil {
+		t.Fatalf("failed to parse e2e_asm.yaml: %v", err)
+	}
+
+	for _, tc := range testFile.Tests {
+		t.Run(tc.Name, func(t *testing.T) {
+			if tc.Skip != "" {
+				t.Skip(tc.Skip)
+			}
+
+			// Create temp file with test input
+			tmpDir := t.TempDir()
+			testCFile := filepath.Join(tmpDir, "test.c")
+			if err := os.WriteFile(testCFile, []byte(tc.Input), 0644); err != nil {
+				t.Fatalf("failed to write test file: %v", err)
+			}
+
+			// Run ralph-cc with -dasm flag
+			resetDebugFlags()
+			var out, errOut bytes.Buffer
+			cmd := newRootCmd(&out, &errOut)
+			cmd.SetArgs([]string{"--dasm", testCFile})
+			if err := cmd.Execute(); err != nil {
+				t.Fatalf("ralph-cc failed: %v\nStderr: %s", err, errOut.String())
+			}
+
+			output := out.String()
+			// Check that all expected strings appear in output
+			for _, exp := range tc.Expect {
 				if !strings.Contains(output, exp) {
 					t.Errorf("expected output to contain %q\nGot:\n%s", exp, output)
 				}

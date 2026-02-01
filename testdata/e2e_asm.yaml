@@ -1,0 +1,108 @@
+# End-to-end tests for C to ARM64 assembly generation
+# These tests verify the full compilation pipeline from C source to assembly output
+
+tests:
+  - name: "hello world - return zero"
+    input: |
+      int main() { return 0; }
+    expect:
+      - ".text"
+      - ".global\tmain"
+      - "main:"
+      - "ret"
+
+  - name: "return constant"
+    input: |
+      int f() { return 42; }
+    expect:
+      - ".global\tf"
+      - "f:"
+      - "ret"
+
+  - name: "function with parameters"
+    input: |
+      int add(int a, int b) { return a + b; }
+    expect:
+      - ".global\tadd"
+      - "add:"
+      - "add\t"
+      - "ret"
+
+  - name: "multiple functions"
+    input: |
+      int helper() { return 1; }
+      int main() { return helper(); }
+    expect:
+      - ".global\thelper"
+      - ".global\tmain"
+      - "helper:"
+      - "main:"
+      - "blr"  # indirect call via register
+
+  - name: "local variable"
+    input: |
+      int f() { int x = 5; return x; }
+    expect:
+      - ".global\tf"
+      - "f:"
+      - "ret"
+
+  - name: "if statement"
+    input: |
+      int f(int x) { if (x) return 1; return 0; }
+    expect:
+      - ".global\tf"
+      - "f:"
+      - "b."  # conditional branch
+      - "ret"
+
+  - name: "while loop"
+    input: |
+      int f(int n) { int s = 0; while (n > 0) { s = s + n; n = n - 1; } return s; }
+    expect:
+      - ".global\tf"
+      - "f:"
+      - "b."  # conditional branch
+      - "add\t"
+      - "sub\t"
+      - "ret"
+
+  - name: "arithmetic operations"
+    input: |
+      int f(int a, int b) { return a * b + a - b; }
+    expect:
+      - ".global\tf"
+      - "f:"
+      - "mul\t"
+      - "add\t"
+      - "sub\t"
+      - "ret"
+
+  - name: "bitwise operations"
+    input: |
+      int f(int a, int b) { return (a & b) | (a ^ b); }
+    expect:
+      - ".global\tf"
+      - "f:"
+      - "and\t"
+      - "orr\t"
+      - "eor\t"
+      - "ret"
+
+  - name: "simple comparison"
+    input: |
+      int f(int a, int b) { if (a < b) return 1; return 0; }
+    expect:
+      - ".global\tf"
+      - "f:"
+      - "b."  # conditional branch based on comparison
+      - "ret"
+
+  - name: "shift right"
+    input: |
+      int f(int x) { return x >> 1; }
+    expect:
+      - ".global\tf"
+      - "f:"
+      - "asr\t"  # arithmetic shift right
+      - "ret"
