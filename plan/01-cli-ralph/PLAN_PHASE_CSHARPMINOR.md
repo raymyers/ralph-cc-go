@@ -28,28 +28,28 @@ Cshmgen transforms Clight to Csharpminor by:
 
 ### Tasks
 
-- [ ] Create `pkg/csharpminor/ast.go` with node interfaces
-- [ ] Define Csharpminor constants:
-  - [ ] `Ointconst`, `Ofloatconst`, `Olongconst`, `Osingleconst`
-- [ ] Define Csharpminor expressions:
-  - [ ] `Evar` (global variable)
-  - [ ] `Etempvar` (local temporary)
-  - [ ] `Eaddrof` (address of global)
-  - [ ] `Econst` (constant)
-  - [ ] `Eunop` (typed unary operations)
-  - [ ] `Ebinop` (typed binary operations)
-  - [ ] `Eload` (explicit memory load with chunk)
-- [ ] Define memory chunks:
-  - [ ] `Mint8signed`, `Mint8unsigned`, `Mint16signed`, `Mint16unsigned`
-  - [ ] `Mint32`, `Mint64`, `Mfloat32`, `Mfloat64`, `Many32`, `Many64`
-- [ ] Define Csharpminor statements:
-  - [ ] `Sskip`, `Sset`, `Sstore`
-  - [ ] `Scall`, `Stailcall`
-  - [ ] `Sseq`, `Sifthenelse`
-  - [ ] `Sloop`, `Sblock`, `Sexit`
-  - [ ] `Sswitch`, `Sreturn`, `Slabel`, `Sgoto`
-- [ ] Define function and program structures
-- [ ] Add tests for AST construction
+- [x] Create `pkg/csharpminor/ast.go` with node interfaces
+- [x] Define Csharpminor constants:
+  - [x] `Ointconst`, `Ofloatconst`, `Olongconst`, `Osingleconst`
+- [x] Define Csharpminor expressions:
+  - [x] `Evar` (global variable)
+  - [x] `Etempvar` (local temporary)
+  - [x] `Eaddrof` (address of global)
+  - [x] `Econst` (constant)
+  - [x] `Eunop` (typed unary operations)
+  - [x] `Ebinop` (typed binary operations)
+  - [x] `Eload` (explicit memory load with chunk)
+- [x] Define memory chunks:
+  - [x] `Mint8signed`, `Mint8unsigned`, `Mint16signed`, `Mint16unsigned`
+  - [x] `Mint32`, `Mint64`, `Mfloat32`, `Mfloat64`, `Many32`, `Many64`
+- [x] Define Csharpminor statements:
+  - [x] `Sskip`, `Sset`, `Sstore`
+  - [x] `Scall`, `Stailcall`
+  - [x] `Sseq`, `Sifthenelse`
+  - [x] `Sloop`, `Sblock`, `Sexit`
+  - [x] `Sswitch`, `Sreturn`, `Slabel`, `Sgoto`
+- [x] Define function and program structures
+- [x] Add tests for AST construction
 
 ## Milestone 2: Operator Translation
 
