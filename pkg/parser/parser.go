@@ -90,6 +90,69 @@ func (p *Parser) expect(t lexer.TokenType) bool {
 	return false
 }
 
+// syncToStmtEnd synchronizes to the end of a statement (';' or '}')
+// Used for panic-mode error recovery within blocks
+func (p *Parser) syncToStmtEnd() {
+	for !p.curTokenIs(lexer.TokenEOF) {
+		// Stop at semicolon (end of statement)
+		if p.curTokenIs(lexer.TokenSemicolon) {
+			p.nextToken() // consume ';'
+			return
+		}
+		// Stop at closing brace (end of block)
+		if p.curTokenIs(lexer.TokenRBrace) {
+			return
+		}
+		// Stop at opening brace (start of new block) - don't consume
+		if p.curTokenIs(lexer.TokenLBrace) {
+			return
+		}
+		p.nextToken()
+	}
+}
+
+// syncToBlockEnd synchronizes to matching closing brace
+// Handles nested braces correctly
+func (p *Parser) syncToBlockEnd() {
+	depth := 1
+	for !p.curTokenIs(lexer.TokenEOF) && depth > 0 {
+		if p.curTokenIs(lexer.TokenLBrace) {
+			depth++
+		} else if p.curTokenIs(lexer.TokenRBrace) {
+			depth--
+		}
+		if depth > 0 {
+			p.nextToken()
+		}
+	}
+}
+
+// isStatementStart returns true if the current token can start a statement
+func (p *Parser) isStatementStart() bool {
+	switch p.curToken.Type {
+	case lexer.TokenReturn, lexer.TokenIf, lexer.TokenWhile, lexer.TokenDo,
+		lexer.TokenFor, lexer.TokenSwitch, lexer.TokenBreak, lexer.TokenContinue,
+		lexer.TokenGoto, lexer.TokenLBrace, lexer.TokenSemicolon:
+		return true
+	}
+	// Type specifiers, storage class specifiers, type qualifiers
+	if p.isStorageClassSpecifier() || p.isTypeQualifier() || p.isTypeSpecifierKeyword() {
+		return true
+	}
+	// Identifiers (could be expression or typedef name)
+	if p.curTokenIs(lexer.TokenIdent) {
+		return true
+	}
+	// Expression statement starters (literals, unary ops, etc.)
+	switch p.curToken.Type {
+	case lexer.TokenInt, lexer.TokenLParen, lexer.TokenStar, lexer.TokenAmpersand,
+		lexer.TokenMinus, lexer.TokenNot, lexer.TokenTilde, lexer.TokenIncrement,
+		lexer.TokenDecrement, lexer.TokenSizeof:
+		return true
+	}
+	return false
+}
+
 // ParseDefinition parses a top-level definition (function, typedef, struct, union, or enum)
 func (p *Parser) ParseDefinition() cabs.Definition {
 	// Check for typedef
@@ -496,6 +559,9 @@ func (p *Parser) parseBlock() *cabs.Block {
 		stmt := p.parseStatement()
 		if stmt != nil {
 			block.Items = append(block.Items, stmt)
+		} else {
+			// Error recovery: sync to end of statement and continue
+			p.syncToStmtEnd()
 		}
 	}
 

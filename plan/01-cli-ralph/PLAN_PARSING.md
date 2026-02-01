@@ -211,9 +211,9 @@ Detailed task list to implement the parsing plan from docs/PARSING.md. The goal 
 - [ ] Add integration tests comparing with CompCert output
 
 ### M6.4: Error Recovery
-- [ ] Implement panic-mode recovery
-- [ ] Continue parsing after errors
-- [ ] Report multiple errors per file
+- [x] Implement panic-mode recovery
+- [x] Continue parsing after errors
+- [x] Report multiple errors per file
 
 ---
 

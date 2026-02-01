@@ -2495,3 +2495,152 @@ func TestFunctionPointerDeclaration(t *testing.T) {
 		})
 	}
 }
+
+
+// Error Recovery Tests
+
+func TestErrorRecoveryInBlock(t *testing.T) {
+	// Test that parser continues after an error in a statement
+	input := `int f() {
+		int x = 1;
+		@ invalid syntax;
+		int y = 2;
+		return y;
+	}`
+
+	l := lexer.New(input)
+	p := New(l)
+	def := p.ParseDefinition()
+
+	// Should have errors
+	if len(p.Errors()) == 0 {
+		t.Fatal("expected parser errors, got none")
+	}
+
+	// But should still parse the function
+	if def == nil {
+		t.Fatal("expected function definition despite errors")
+	}
+
+	funDef, ok := def.(cabs.FunDef)
+	if !ok {
+		t.Fatalf("expected FunDef, got %T", def)
+	}
+
+	// Should have recovered and parsed valid statements after the error
+	// We expect at least the first declaration and possibly the last return
+	if len(funDef.Body.Items) == 0 {
+		t.Error("expected at least one statement to be parsed")
+	}
+}
+
+func TestErrorRecoveryMultipleErrors(t *testing.T) {
+	// Test that multiple errors are reported
+	input := `int f() {
+		@ error1;
+		$ error2;
+		return 1;
+	}`
+
+	l := lexer.New(input)
+	p := New(l)
+	_ = p.ParseDefinition()
+
+	// Should report multiple errors
+	if len(p.Errors()) < 2 {
+		t.Errorf("expected at least 2 errors, got %d: %v", len(p.Errors()), p.Errors())
+	}
+}
+
+func TestErrorRecoveryParseSecondFunction(t *testing.T) {
+	// Test that second function is parsed even if first has errors
+	input := `int broken() {
+		@ invalid;
+		return 1;
+	}
+	int valid() {
+		return 42;
+	}`
+
+	l := lexer.New(input)
+	p := New(l)
+	program := p.ParseProgram()
+
+	// Should have errors from first function
+	if len(p.Errors()) == 0 {
+		t.Fatal("expected parser errors from first function")
+	}
+
+	// Should still parse both functions
+	if len(program.Definitions) != 2 {
+		t.Errorf("expected 2 definitions, got %d", len(program.Definitions))
+	}
+
+	// Second function should be valid
+	if len(program.Definitions) >= 2 {
+		funDef, ok := program.Definitions[1].(cabs.FunDef)
+		if !ok {
+			t.Fatalf("expected second definition to be FunDef, got %T", program.Definitions[1])
+		}
+		if funDef.Name != "valid" {
+			t.Errorf("expected second function name 'valid', got %q", funDef.Name)
+		}
+	}
+}
+
+func TestErrorRecoveryContinuesAfterMissingSemicolon(t *testing.T) {
+	// Missing semicolon should not stop parsing subsequent statements
+	input := `int f() {
+		int x = 1
+		int y = 2;
+		return y;
+	}`
+
+	l := lexer.New(input)
+	p := New(l)
+	def := p.ParseDefinition()
+
+	// Should have error about missing semicolon
+	if len(p.Errors()) == 0 {
+		t.Fatal("expected parser error for missing semicolon")
+	}
+
+	if def == nil {
+		t.Fatal("expected function definition despite error")
+	}
+
+	funDef, ok := def.(cabs.FunDef)
+	if !ok {
+		t.Fatalf("expected FunDef, got %T", def)
+	}
+
+	// Should have parsed something
+	if len(funDef.Body.Items) == 0 {
+		t.Error("expected at least one statement to be parsed")
+	}
+}
+
+func TestErrorRecoverySyncToBlockEnd(t *testing.T) {
+	// Test recovery with nested blocks
+	input := `int f() {
+		if (1) {
+			@ invalid in nested block;
+			return 1;
+		}
+		return 2;
+	}`
+
+	l := lexer.New(input)
+	p := New(l)
+	def := p.ParseDefinition()
+
+	// Should have errors
+	if len(p.Errors()) == 0 {
+		t.Fatal("expected parser errors")
+	}
+
+	// But should still produce a function
+	if def == nil {
+		t.Fatal("expected function definition despite errors")
+	}
+}
