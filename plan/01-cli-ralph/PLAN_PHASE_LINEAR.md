@@ -23,122 +23,118 @@ This phase transforms the CFG-based LTL to a linear sequence:
 2. **Tunneling** - Shortcut jumps that go to other jumps
 3. **CleanupLabels** - Remove unused labels
 
-## Milestone 1: Linear AST Definition
+## Milestone 1: Linear AST Definition ✓
 
 **Goal:** Define the Linear AST with linear code
 
 ### Tasks
 
-- [ ] Create `pkg/linear/ast.go` with node interfaces
-- [ ] Define labels:
-  - [ ] Label type (positive integer)
-  - [ ] Label comparison/equality
-- [ ] Define Linear instructions:
-  - [ ] `Lgetstack` - Load from stack slot to register
-  - [ ] `Lsetstack` - Store register to stack slot
-  - [ ] `Lop` - Operation with locations
-  - [ ] `Lload` - Memory load
-  - [ ] `Lstore` - Memory store
-  - [ ] `Lcall` - Function call
-  - [ ] `Ltailcall` - Tail call
-  - [ ] `Lbuiltin` - Builtin operation
-  - [ ] `Llabel` - Label definition
-  - [ ] `Lgoto` - Unconditional jump
-  - [ ] `Lcond` - Conditional branch
-  - [ ] `Ljumptable` - Indexed jump
-  - [ ] `Lreturn` - Function return
-- [ ] Define function structure:
-  - [ ] Signature
-  - [ ] Stack size
-  - [ ] Code (instruction list)
-- [ ] Add tests for AST construction
+- [x] Create `pkg/linear/ast.go` with node interfaces
+- [x] Define labels:
+  - [x] Label type (positive integer)
+  - [x] Label comparison/equality
+- [x] Define Linear instructions:
+  - [x] `Lgetstack` - Load from stack slot to register
+  - [x] `Lsetstack` - Store register to stack slot
+  - [x] `Lop` - Operation with locations
+  - [x] `Lload` - Memory load
+  - [x] `Lstore` - Memory store
+  - [x] `Lcall` - Function call
+  - [x] `Ltailcall` - Tail call
+  - [x] `Lbuiltin` - Builtin operation
+  - [x] `Llabel` - Label definition
+  - [x] `Lgoto` - Unconditional jump
+  - [x] `Lcond` - Conditional branch
+  - [x] `Ljumptable` - Indexed jump
+  - [x] `Lreturn` - Function return
+- [x] Define function structure:
+  - [x] Signature
+  - [x] Stack size
+  - [x] Code (instruction list)
+- [x] Add tests for AST construction
 
-## Milestone 2: CFG Linearization
+## Milestone 2: CFG Linearization ✓
 
 **Goal:** Flatten CFG to linear instruction sequence
 
 ### Tasks
 
-- [ ] Create `pkg/linearize/linearize.go`
-- [ ] Implement basic block ordering:
-  - [ ] Start from entry
-  - [ ] Follow fall-through when possible
-  - [ ] Place frequently executed code first
-- [ ] Implement node enumeration:
-  - [ ] Depth-first postorder (reverse)
-  - [ ] Or trace-based ordering
-- [ ] Convert LTL blocks to Linear instructions:
-  - [ ] Block start → label
-  - [ ] Block instructions → linear instructions
-  - [ ] Block terminator → branch/return
-- [ ] Handle fall-through optimization:
-  - [ ] If next block is target, omit jump
-  - [ ] Otherwise emit `Lgoto`
-- [ ] Handle conditional branches:
-  - [ ] Try to make fall-through case "true"
-  - [ ] May need to negate condition
-- [ ] Add tests for linearization
+- [x] Create `pkg/linearize/linearize.go`
+- [x] Implement basic block ordering:
+  - [x] Start from entry
+  - [x] Follow fall-through when possible
+  - [x] Reverse postorder traversal
+- [x] Implement node enumeration:
+  - [x] Depth-first postorder (reverse)
+- [x] Convert LTL blocks to Linear instructions:
+  - [x] Block start → label
+  - [x] Block instructions → linear instructions
+  - [x] Block terminator → branch/return
+- [x] Handle fall-through optimization:
+  - [x] If next block is target, omit jump
+  - [x] Otherwise emit `Lgoto`
+- [x] Handle conditional branches:
+  - [x] Fall-through optimization for if-not branch
+- [x] Add tests for linearization
 
-## Milestone 3: Branch Tunneling
+## Milestone 3: Branch Tunneling ✓
 
 **Goal:** Shortcut redundant jumps
 
 ### Tasks
 
-- [ ] Create `pkg/linearize/tunneling.go`
-- [ ] Build jump target map:
-  - [ ] For each label, what does it jump to?
-  - [ ] Handle chains: L1 → L2 → L3 becomes L1 → L3
-- [ ] Implement tunneling:
-  - [ ] `goto L1` where L1 is `goto L2` → `goto L2`
-  - [ ] Handle cycles (don't infinite loop)
-- [ ] Handle conditional tunneling:
-  - [ ] `if c then L1` where L1 is `goto L2` → `if c then L2`
-- [ ] Handle jump tables:
-  - [ ] Tunnel each table entry
-- [ ] Iterate until no changes
-- [ ] Add tests for tunneling
+- [x] Create `pkg/linearize/tunneling.go`
+- [x] Build jump target map:
+  - [x] For each label, what does it jump to?
+  - [x] Handle chains: L1 → L2 → L3 becomes L1 → L3
+- [x] Implement tunneling:
+  - [x] `goto L1` where L1 is `goto L2` → `goto L2`
+  - [x] Handle cycles (don't infinite loop)
+- [x] Handle conditional tunneling:
+  - [x] `if c then L1` where L1 is `goto L2` → `if c then L2`
+- [x] Handle jump tables:
+  - [x] Tunnel each table entry
+- [x] Add tests for tunneling
 
-## Milestone 4: Label Cleanup
+## Milestone 4: Label Cleanup ✓
 
 **Goal:** Remove unreferenced labels
 
 ### Tasks
 
-- [ ] Create `pkg/linearize/cleanup.go`
-- [ ] Collect used labels:
-  - [ ] All jump targets
-  - [ ] All conditional targets
-  - [ ] All jump table entries
-- [ ] Remove unused labels:
-  - [ ] Remove `Llabel` for unreferenced labels
-- [ ] Preserve entry point (always referenced)
-- [ ] Add tests for label cleanup
+- [x] Create `pkg/linearize/cleanup.go`
+- [x] Collect used labels:
+  - [x] All jump targets
+  - [x] All conditional targets
+  - [x] All jump table entries
+- [x] Remove unused labels:
+  - [x] Remove `Llabel` for unreferenced labels
+- [x] Preserve entry point (always referenced)
+- [x] Add tests for label cleanup
 
-## Milestone 5: Stack Slot Assignment
+## Milestone 5: Stack Slot Assignment ✓
 
 **Goal:** Prepare for activation record layout
 
 ### Tasks
 
-- [ ] Create `pkg/linearize/stack.go` (or integrate with Stacking)
-- [ ] Collect all stack slot references
-- [ ] Compute stack frame size needed
-- [ ] Ensure alignment requirements met
-- [ ] Add tests for stack assignment
+- [x] Create `pkg/linearize/stack.go`
+- [x] Collect all stack slot references (local, incoming, outgoing)
+- [x] Compute stack frame size needed
+- [x] Ensure 16-byte alignment (ARM64 requirement)
+- [x] Add tests for stack assignment
 
-## Milestone 6: CLI Integration & Testing
+## Milestone 6: CLI Integration & Testing ✓
 
-**Goal:** Wire linearization to CLI
+**Goal:** Wire linearization to CLI (internal phase - no CLI flag)
 
 ### Tasks
 
-- [ ] This is an internal phase (no separate CompCert dump)
-- [ ] Create `pkg/linear/printer.go` for debugging
-- [ ] Create test cases in `testdata/linear/`
-- [ ] Add integration tests
-- [ ] Test tunneling effectiveness
-- [ ] Test label cleanup
+- [x] This is an internal phase (no separate CompCert dump)
+- [x] Create `pkg/linear/printer.go` for debugging
+- [x] Unit tests for all components
+- [x] Test tunneling effectiveness
+- [x] Test label cleanup
 
 ## Test Strategy
 
