@@ -31,28 +31,28 @@ Stacking transforms Linear to Mach by:
 
 ### Tasks
 
-- [ ] Create `pkg/mach/ast.go` with node interfaces
-- [ ] Define machine registers (same as LTL)
-- [ ] Define Mach instructions:
-  - [ ] `Mgetstack` - Load from stack at concrete offset
-  - [ ] `Msetstack` - Store to stack at concrete offset
-  - [ ] `Mgetparam` - Load parameter from caller's frame
-  - [ ] `Mop` - Operation
-  - [ ] `Mload` - Memory load
-  - [ ] `Mstore` - Memory store
-  - [ ] `Mcall` - Function call
-  - [ ] `Mtailcall` - Tail call
-  - [ ] `Mbuiltin` - Builtin
-  - [ ] `Mlabel` - Label
-  - [ ] `Mgoto` - Unconditional jump
-  - [ ] `Mcond` - Conditional branch
-  - [ ] `Mjumptable` - Indexed jump
-  - [ ] `Mreturn` - Return
-- [ ] Define function structure:
-  - [ ] Code
-  - [ ] Stack frame size
-  - [ ] Used callee-save registers
-- [ ] Add tests for AST construction
+- [x] Create `pkg/mach/ast.go` with node interfaces
+- [x] Define machine registers (same as LTL)
+- [x] Define Mach instructions:
+  - [x] `Mgetstack` - Load from stack at concrete offset
+  - [x] `Msetstack` - Store to stack at concrete offset
+  - [x] `Mgetparam` - Load parameter from caller's frame
+  - [x] `Mop` - Operation
+  - [x] `Mload` - Memory load
+  - [x] `Mstore` - Memory store
+  - [x] `Mcall` - Function call
+  - [x] `Mtailcall` - Tail call
+  - [x] `Mbuiltin` - Builtin
+  - [x] `Mlabel` - Label
+  - [x] `Mgoto` - Unconditional jump
+  - [x] `Mcond` - Conditional branch
+  - [x] `Mjumptable` - Indexed jump
+  - [x] `Mreturn` - Return
+- [x] Define function structure:
+  - [x] Code
+  - [x] Stack frame size
+  - [x] Used callee-save registers
+- [x] Add tests for AST construction
 
 ## Milestone 2: Stack Frame Layout
 

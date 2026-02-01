@@ -2,6 +2,9 @@
 [x] Understand the order and meaning of the compcert phases / IRs, summarize in docs/PHASES.md
 [x] Initialize a go with bin `ralph-cc`, cobra CLI, Makefile
 [x] Implement placeholders (warn and exit) for debug flags: -dparse -dc -dasm -dclight -dcminor -drtl -dltl -dmach
+
+# Parsing
+
 [x] Study the Menhir grammar and determine the best plan for an equivelant parser in the Go CLI. You might choose a parsing lib, or recursive descent. Write your plan in docs/PARSING.md
 [x] Study the plan in docs/PARSING.md, chose a tiny subset of C to try parsing, starting with tests driven by a `testdata/parse.yaml` input output, if approach needed to change update docs/PARSING.md.
 [x] Make task bullets in plan/01-cli-ralph/PLAN_PARSING.md to carry out the plan in docs/PARSING.md, wiring to cli's -dparse, driven by the yaml tests, to ultimately reach equivelence on all supported syntax (-dparse matches).
@@ -33,3 +36,5 @@
 [x] Implement the phase plan in `plan/01-cli-ralph/PLAN_PHASE_LTL.md`, go incrementally (add and run tests as you go). Update phase plan marking your progress and notes if you get stuck. Bail if stuck, mark this complete if you finish. (Complete: All 7 milestones done. LTL AST with ARM64 registers, liveness analysis, interference graph, IRC register allocator with coalescing, ARM64 calling conventions, RTL→LTL transformation, CLI with -dltl flag and printer.)
 [x] Implement the phase plan in `plan/01-cli-ralph/PLAN_PHASE_LINEAR.md`, go incrementally (add and run tests as you go). Update phase plan marking your progress and notes if you get stuck. Bail if stuck, mark this complete if you finish. (Complete: All 6 milestones done. Linear AST with labels/branches, CFG linearization with fall-through optimization, branch tunneling, label cleanup, stack slot analysis, and printer for debugging. This is an internal phase without CLI flag.)
 [x] Add a short LICENSE file indicating that this is derived from aspects of CompCert which is only licensed for non-commercial / research use and this code should be considered the same way until the legal status is established otherwise.
+[ ] Implement the phase plan in `plan/01-cli-ralph/PLAN_PHASE_MACH.md`, go incrementally (and run tests as you go). Update phase plan marking your progress and notes if you get stuck. Bail if stuck, mark this complete if you finish.
+[ ] Implement the phase plan in `plan/01-cli-ralph/PLAN_PHASE_ASM.md`, go incrementally (add and run tests as you go). Update phase plan marking your progress and notes if you get stuck. Bail if stuck, mark this complete if you finish.
