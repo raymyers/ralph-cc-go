@@ -28,27 +28,29 @@ Cminorgen transforms Csharpminor to Cminor by:
 
 ### Tasks
 
-- [ ] Create `pkg/cminor/ast.go` with node interfaces
-- [ ] Define Cminor expressions:
-  - [ ] `Evar` (identifier - local or global)
-  - [ ] `Econst` (integer, float, long, single)
-  - [ ] `Eunop`, `Ebinop` (typed operators, similar to Csharpminor)
-  - [ ] `Eload` (memory load with chunk)
-- [ ] Define Cminor statements:
-  - [ ] `Sskip`, `Sassign` (local variable assignment)
-  - [ ] `Sstore` (memory store)
-  - [ ] `Scall`, `Stailcall` (function calls)
-  - [ ] `Sseq` (sequence)
-  - [ ] `Sifthenelse`, `Sloop`, `Sblock`, `Sexit`
-  - [ ] `Sswitch` (simplified switch)
-  - [ ] `Sreturn`, `Slabel`, `Sgoto`
-- [ ] Define function structure:
-  - [ ] Function signature
-  - [ ] Local variable declarations (stack-allocated)
-  - [ ] Stack space requirement
-  - [ ] Function body
-- [ ] Define program structure
-- [ ] Add tests for AST construction
+- [x] Create `pkg/cminor/ast.go` with node interfaces
+- [x] Define Cminor expressions:
+  - [x] `Evar` (identifier - local or global)
+  - [x] `Econst` (integer, float, long, single)
+  - [x] `Eunop`, `Ebinop` (typed operators, similar to Csharpminor)
+  - [x] `Eload` (memory load with chunk)
+- [x] Define Cminor statements:
+  - [x] `Sskip`, `Sassign` (local variable assignment)
+  - [x] `Sstore` (memory store)
+  - [x] `Scall`, `Stailcall` (function calls)
+  - [x] `Sseq` (sequence)
+  - [x] `Sifthenelse`, `Sloop`, `Sblock`, `Sexit`
+  - [x] `Sswitch` (simplified switch)
+  - [x] `Sreturn`, `Slabel`, `Sgoto`
+- [x] Define function structure:
+  - [x] Function signature
+  - [x] Local variable declarations (stack-allocated)
+  - [x] Stack space requirement
+  - [x] Function body
+- [x] Define program structure
+- [x] Add tests for AST construction
+
+**Notes:** Re-exported shared types (Chunk, UnaryOp, BinaryOp, Comparison) from csharpminor to avoid duplication. Key differences from Csharpminor: Sassign uses variable names instead of temp IDs, Scall result is a variable name, Functions have Stackspace and Vars fields.
 
 ## Milestone 2: Stack Frame Layout
 
