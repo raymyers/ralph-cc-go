@@ -108,13 +108,15 @@ Cminorgen transforms Csharpminor to Cminor by:
 
 ### Tasks
 
-- [ ] Create `pkg/cminorgen/transform.go`
-- [ ] Translate expressions (mostly 1:1 from Csharpminor)
-- [ ] Translate statements with stack variable handling
-- [ ] Handle block scoping (Sblock → stack frame regions)
-- [ ] Transform exit statements
-- [ ] Handle function prologue/epilogue concepts
-- [ ] Add tests for full transformation
+- [x] Create `pkg/cminorgen/transform.go`
+- [x] Translate expressions (mostly 1:1 from Csharpminor)
+- [x] Translate statements with stack variable handling
+- [x] Handle block scoping (Sblock → stack frame regions)
+- [x] Transform exit statements
+- [x] Handle function prologue/epilogue concepts
+- [x] Add tests for full transformation
+
+**Notes:** Implemented Transformer struct with TransformExpr/TransformStmt methods. Key transformations: Etempvar→Evar with generated names (_t0, _t1, ...), Eaddrof for stack vars→constant offset, Sset→Sassign or Sstore depending on var classification, Scall/Stailcall/Sbuiltin with string result names. TransformFunction combines VarEnv classification with body transformation, computing stackspace and vars list. TransformProgram handles full program translation with globals tracking.
 
 ## Milestone 6: CLI Integration & Testing
 
