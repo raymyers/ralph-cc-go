@@ -71,18 +71,18 @@ Clight simplifies CompCert C by:
 
 ### Tasks
 
-- [ ] Create `pkg/simplexpr/transform.go`
-- [ ] Implement expression classification:
-  - [ ] Identify pure expressions (no side-effects)
-  - [ ] Identify expressions with side-effects
-- [ ] Implement temporary variable generation
-- [ ] Transform assignment expressions (`=`, `+=`, etc.) to statements
-- [ ] Transform increment/decrement (`++`, `--`) to statements
-- [ ] Transform function calls in expressions to temporaries
-- [ ] Transform comma operator to statement sequence
-- [ ] Transform ternary operator with side-effects
-- [ ] Handle compound assignments correctly
-- [ ] Add comprehensive tests from `testdata/simplexpr.yaml`
+- [x] Create `pkg/simplexpr/transform.go`
+- [x] Implement expression classification:
+  - [x] Identify pure expressions (no side-effects)
+  - [x] Identify expressions with side-effects
+- [x] Implement temporary variable generation
+- [x] Transform assignment expressions (`=`, `+=`, etc.) to statements
+- [x] Transform increment/decrement (`++`, `--`) to statements
+- [x] Transform function calls in expressions to temporaries
+- [x] Transform comma operator to statement sequence
+- [x] Transform ternary operator with side-effects
+- [x] Handle compound assignments correctly
+- [x] Add comprehensive tests (in `pkg/simplexpr/transform_test.go`)
 
 ## Milestone 4: SimplLocals Transformation
 
