@@ -9,5 +9,6 @@
 [x] Get plan/01-cli-ralph/PLAN_PARSING.md to 50% tasks done
 [x] Get plan/01-cli-ralph/PLAN_PARSING.md to 75% tasks done
 [x] Get plan/01-cli-ralph/PLAN_PARSING.md to 100% tasks done
+[ ] Ensure to cli's -dparse is wired to save that parsed AST in the same format as compcert saves. Create `testdata/example-c/all.c` to have a single exercise of all syntax.
 [ ] Manually spot check our parser cli againse ccert (using container-use) and review tests for any gaps including checking for parser commit diffs that don't add test cases (adding task bullet to plan/01-cli-ralph/PLAN_TEST.md if needed).
 [ ] Execute plan/01-cli-ralph/PLAN_TEST.md, especially ensuring low duplication in test code and data is parameterized and yaml driven.
