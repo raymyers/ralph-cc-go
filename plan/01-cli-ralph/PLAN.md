@@ -13,3 +13,4 @@
 [x] HEY! determine why this isn't dumping the parsed data `bin/ralph-cc testdata/example-c/all.c -dparse`
 [x] Manually spot check our parser cli againse ccert (using container-use) and review tests for any gaps including checking for parser commit diffs that don't add test cases (adding task bullets to plan/01-cli-ralph/PLAN_TEST.md if needed).
 [x] Execute plan/01-cli-ralph/PLAN_TEST.md, especially ensuring low duplication in test code and data is parameterized and yaml driven.
+[ ] Based on docs/PHASES.md, create a `plan/01-cli-ralph/PLAN_PHASE_*.MD` for each phase with an implementation plan, noting prereqs. Format as milestone sections with task bullets. Break it down for high assurance of success and solid data-driven testing. Ensure the key files from Compcert are called out to study (logic and AST structure...)
