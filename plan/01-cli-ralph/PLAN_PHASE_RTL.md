@@ -58,29 +58,31 @@ RTLgen transforms CminorSel to RTL by:
 
 **Notes:** Complete RTL AST with all instruction types, operations, conditions, and CFG structure. Tests verify interface implementations and instruction successors.
 
-## Milestone 2: CFG Construction
+## Milestone 2: CFG Construction ✅
 
 **Goal:** Build control flow graph from structured code
 
 ### Tasks
 
-- [ ] Create `pkg/rtlgen/cfg.go`
-- [ ] Implement node allocation (fresh node IDs)
-- [ ] Implement basic block construction:
-  - [ ] Sequence of statements → chain of nodes
-  - [ ] Last node links to exit
-- [ ] Implement conditional translation:
-  - [ ] `if (c) s1 else s2` → condition node + two branches
-  - [ ] Merge point at end
-- [ ] Implement loop translation:
-  - [ ] Loop header node
-  - [ ] Back edge to header
-  - [ ] Exit edge
-- [ ] Implement switch translation:
-  - [ ] Jump table node
-  - [ ] Case entry points
-- [ ] Handle break/continue with proper exit edges
-- [ ] Add tests for CFG construction
+- [x] Create `pkg/rtlgen/cfg.go`
+- [x] Implement node allocation (fresh node IDs)
+- [x] Implement basic block construction:
+  - [x] Sequence of statements → chain of nodes
+  - [x] Last node links to exit
+- [x] Implement conditional translation:
+  - [x] `if (c) s1 else s2` → condition node + two branches
+  - [x] Merge point at end
+- [x] Implement loop translation:
+  - [x] Loop header node
+  - [x] Back edge to header
+  - [x] Exit edge
+- [x] Implement switch translation:
+  - [x] Jump table node
+  - [x] Case entry points
+- [x] Handle break/continue with proper exit edges
+- [x] Add tests for CFG construction
+
+**Notes:** Created CFGBuilder with node/register allocation, label mapping, stack var tracking. ExitContext handles Sblock/Sexit for break/continue. TranslateCondition converts CminorSel conditions to RTL condition codes.
 
 ## Milestone 3: Register Allocation (Virtual)
 
