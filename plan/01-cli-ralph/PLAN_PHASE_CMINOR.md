@@ -74,15 +74,17 @@ Cminorgen transforms Csharpminor to Cminor by:
 
 ### Tasks
 
-- [ ] Create `pkg/cminorgen/vars.go`
-- [ ] Classify variables:
-  - [ ] Register candidates (not address-taken)
-  - [ ] Stack candidates (address-taken)
-- [ ] Transform address-of operations to stack offsets
-- [ ] Transform variable reads for stack variables to loads
-- [ ] Transform variable writes for stack variables to stores
-- [ ] Keep register variable access simple
-- [ ] Add tests for variable transformation
+- [x] Create `pkg/cminorgen/vars.go`
+- [x] Classify variables:
+  - [x] Register candidates (not address-taken)
+  - [x] Stack candidates (address-taken)
+- [x] Transform address-of operations to stack offsets
+- [x] Transform variable reads for stack variables to loads
+- [x] Transform variable writes for stack variables to stores
+- [x] Keep register variable access simple
+- [x] Add tests for variable transformation
+
+**Notes:** Implemented VarEnv with ClassifyVariables that uses FindAddressTaken to determine which vars need stack allocation. VarKind enum for VarRegister/VarStack classification. TransformAddrOf generates constant offset expressions, TransformVarRead generates Evar for registers or Eload for stack, TransformVarWrite generates Sassign for registers or Sstore for stack.
 
 ## Milestone 4: Switch Statement Simplification
 
