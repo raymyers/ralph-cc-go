@@ -220,12 +220,18 @@ Detailed task list to implement the parsing plan from docs/PARSING.md. The goal 
 ## Equivalence Testing
 
 ### E1: Test Infrastructure
-- [ ] Script to run CompCert `-dparse` on test files
-- [ ] Comparison tool for AST output
-- [ ] Add to CI
+- [x] Script to run CompCert `-dparse` on test files
+- [x] Comparison tool for AST output
+- [x] Add to CI
+
+Note: Implemented via integration_test.go which runs CompCert -dparse 
+and compares output. Skips gracefully when CompCert unavailable.
 
 ### E2: Equivalence Test Suite
-- [ ] Expressions equivalence tests
-- [ ] Statements equivalence tests  
-- [ ] Declarations equivalence tests
-- [ ] Full programs equivalence tests
+- [x] Expressions equivalence tests
+- [x] Statements equivalence tests  
+- [x] Declarations equivalence tests
+- [x] Full programs equivalence tests
+
+Note: Tests defined in testdata/integration.yaml with 45 test cases
+covering all categories. Run via `go test ./...` when CompCert available.
