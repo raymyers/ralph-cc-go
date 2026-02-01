@@ -24,37 +24,39 @@ RTLgen transforms CminorSel to RTL by:
 3. **Pseudo-registers** - Infinite virtual registers
 4. **Explicit control flow** - Branches and jumps between nodes
 
-## Milestone 1: RTL AST Definition
+## Milestone 1: RTL AST Definition ✅
 
 **Goal:** Define the RTL AST with CFG structure
 
 ### Tasks
 
-- [ ] Create `pkg/rtl/ast.go` with node interfaces
-- [ ] Define registers:
-  - [ ] Pseudo-register type (infinite supply)
-  - [ ] Register comparison/equality
-- [ ] Define RTL instructions:
-  - [ ] `Inop` (no operation, jump to successor)
-  - [ ] `Iop` (operation: `rd = op(rs...)`)
-  - [ ] `Iload` (memory load: `rd = Mem[addr]`)
-  - [ ] `Istore` (memory store: `Mem[addr] = rs`)
-  - [ ] `Icall` (function call)
-  - [ ] `Itailcall` (tail call)
-  - [ ] `Ibuiltin` (builtin operation)
-  - [ ] `Icond` (conditional branch)
-  - [ ] `Ijumptable` (indexed jump)
-  - [ ] `Ireturn` (function return)
-- [ ] Define CFG structure:
-  - [ ] Node type (positive integer)
-  - [ ] Instruction map (node → instruction)
-  - [ ] Entry point
-- [ ] Define function structure:
-  - [ ] Signature
-  - [ ] Parameters (as registers)
-  - [ ] CFG
-  - [ ] Entry node
-- [ ] Add tests for AST construction
+- [x] Create `pkg/rtl/ast.go` with node interfaces
+- [x] Define registers:
+  - [x] Pseudo-register type (infinite supply)
+  - [x] Register comparison/equality
+- [x] Define RTL instructions:
+  - [x] `Inop` (no operation, jump to successor)
+  - [x] `Iop` (operation: `rd = op(rs...)`)
+  - [x] `Iload` (memory load: `rd = Mem[addr]`)
+  - [x] `Istore` (memory store: `Mem[addr] = rs`)
+  - [x] `Icall` (function call)
+  - [x] `Itailcall` (tail call)
+  - [x] `Ibuiltin` (builtin operation)
+  - [x] `Icond` (conditional branch)
+  - [x] `Ijumptable` (indexed jump)
+  - [x] `Ireturn` (function return)
+- [x] Define CFG structure:
+  - [x] Node type (positive integer)
+  - [x] Instruction map (node → instruction)
+  - [x] Entry point
+- [x] Define function structure:
+  - [x] Signature
+  - [x] Parameters (as registers)
+  - [x] CFG
+  - [x] Entry node
+- [x] Add tests for AST construction
+
+**Notes:** Complete RTL AST with all instruction types, operations, conditions, and CFG structure. Tests verify interface implementations and instruction successors.
 
 ## Milestone 2: CFG Construction
 
