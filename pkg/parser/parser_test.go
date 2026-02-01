@@ -1829,6 +1829,18 @@ func TestArrayDeclaration(t *testing.T) {
 			typeName: "char[]",
 			varName:  "buf",
 		},
+		{
+			name:     "multi-dimensional array",
+			input:    `int f() { int matrix[3][4]; return 0; }`,
+			typeName: "int[][]",
+			varName:  "matrix",
+		},
+		{
+			name:     "3d array",
+			input:    `int f() { int cube[2][3][4]; return 0; }`,
+			typeName: "int[][][]",
+			varName:  "cube",
+		},
 	}
 
 	for _, tt := range tests {
@@ -2256,5 +2268,59 @@ func defTypeName(def cabs.Definition) string {
 		return "EnumDef"
 	default:
 		return fmt.Sprintf("unknown(%T)", def)
+	}
+}
+
+func TestFunctionPointerDeclaration(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    string
+		typeName string
+		varName  string
+	}{
+		{
+			name:     "simple function pointer",
+			input:    `int f() { int (*fp)(int, int); return 0; }`,
+			typeName: "int(*)(int,int)",
+			varName:  "fp",
+		},
+		{
+			name:     "void function pointer",
+			input:    `int f() { void (*handler)(void); return 0; }`,
+			typeName: "void(*)(void)",
+			varName:  "handler",
+		},
+		{
+			name:     "no args function pointer",
+			input:    `int f() { int (*getter)(); return 0; }`,
+			typeName: "int(*)()",
+			varName:  "getter",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			l := lexer.New(tt.input)
+			p := New(l)
+			def := p.ParseDefinition()
+
+			if len(p.Errors()) > 0 {
+				t.Fatalf("parser errors: %v", p.Errors())
+			}
+
+			funDef := def.(cabs.FunDef)
+			declStmt, ok := funDef.Body.Items[0].(cabs.DeclStmt)
+			if !ok {
+				t.Fatalf("expected DeclStmt, got %T", funDef.Body.Items[0])
+			}
+
+			if declStmt.Decls[0].TypeSpec != tt.typeName {
+				t.Errorf("expected type %q, got %q", tt.typeName, declStmt.Decls[0].TypeSpec)
+			}
+
+			if declStmt.Decls[0].Name != tt.varName {
+				t.Errorf("expected name %q, got %q", tt.varName, declStmt.Decls[0].Name)
+			}
+		})
 	}
 }

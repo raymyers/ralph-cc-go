@@ -578,55 +578,113 @@ func (p *Parser) parseDeclarationStatement() cabs.Stmt {
 		return nil
 	}
 
-	typeSpec := p.curToken.Literal
+	baseType := p.curToken.Literal
 	p.nextToken()
 
 	var decls []cabs.Decl
 
 	// Parse declarators
 	for {
-		// Skip pointer declarators for now (*)
-		for p.curTokenIs(lexer.TokenStar) {
-			typeSpec = typeSpec + "*"
-			p.nextToken()
-		}
+		typeSpec := baseType
 
-		// Expect identifier
-		if !p.curTokenIs(lexer.TokenIdent) {
-			p.addError(fmt.Sprintf("expected identifier in declaration, got %s", p.curToken.Type))
-			return nil
-		}
-		name := p.curToken.Literal
-		p.nextToken()
+		// Check for function pointer: type (*name)(params)
+		if p.curTokenIs(lexer.TokenLParen) && p.peekTokenIs(lexer.TokenStar) {
+			p.nextToken() // consume '('
+			p.nextToken() // consume '*'
 
-		// Check for array declarator
-		for p.curTokenIs(lexer.TokenLBracket) {
-			p.nextToken() // consume '['
-			// For now, skip the array size expression
-			for !p.curTokenIs(lexer.TokenRBracket) && !p.curTokenIs(lexer.TokenEOF) {
+			// Collect pointer modifiers
+			ptrDepth := 1
+			for p.curTokenIs(lexer.TokenStar) {
+				ptrDepth++
 				p.nextToken()
 			}
-			if !p.expect(lexer.TokenRBracket) {
+
+			// Get the name
+			if !p.curTokenIs(lexer.TokenIdent) {
+				p.addError(fmt.Sprintf("expected identifier in function pointer, got %s", p.curToken.Type))
 				return nil
 			}
-			typeSpec = typeSpec + "[]"
-		}
+			name := p.curToken.Literal
+			p.nextToken()
 
-		var init cabs.Expr
-		// Check for initializer
-		if p.curTokenIs(lexer.TokenAssign) {
-			p.nextToken() // consume '='
-			init = p.parseExprPrec(precAssign) // Use assignment precedence to stop at comma
-			if init == nil {
+			if !p.expect(lexer.TokenRParen) {
 				return nil
 			}
-		}
 
-		decls = append(decls, cabs.Decl{
-			TypeSpec:    typeSpec,
-			Name:        name,
-			Initializer: init,
-		})
+			// Parse the function parameter list
+			if !p.curTokenIs(lexer.TokenLParen) {
+				p.addError(fmt.Sprintf("expected '(' for function pointer parameters, got %s", p.curToken.Type))
+				return nil
+			}
+			paramList := p.parseFunctionPointerParams()
+
+			// Build the type spec: returnType(*)(params)
+			ptrStr := "(*)"
+			for i := 1; i < ptrDepth; i++ {
+				ptrStr = "(*" + ptrStr + ")"
+			}
+			typeSpec = typeSpec + ptrStr + "(" + paramList + ")"
+
+			var init cabs.Expr
+			// Check for initializer
+			if p.curTokenIs(lexer.TokenAssign) {
+				p.nextToken() // consume '='
+				init = p.parseExprPrec(precAssign)
+				if init == nil {
+					return nil
+				}
+			}
+
+			decls = append(decls, cabs.Decl{
+				TypeSpec:    typeSpec,
+				Name:        name,
+				Initializer: init,
+			})
+		} else {
+			// Regular declarator: pointer and/or identifier
+			// Skip pointer declarators (*)
+			for p.curTokenIs(lexer.TokenStar) {
+				typeSpec = typeSpec + "*"
+				p.nextToken()
+			}
+
+			// Expect identifier
+			if !p.curTokenIs(lexer.TokenIdent) {
+				p.addError(fmt.Sprintf("expected identifier in declaration, got %s", p.curToken.Type))
+				return nil
+			}
+			name := p.curToken.Literal
+			p.nextToken()
+
+			// Check for array declarator
+			for p.curTokenIs(lexer.TokenLBracket) {
+				p.nextToken() // consume '['
+				// For now, skip the array size expression
+				for !p.curTokenIs(lexer.TokenRBracket) && !p.curTokenIs(lexer.TokenEOF) {
+					p.nextToken()
+				}
+				if !p.expect(lexer.TokenRBracket) {
+					return nil
+				}
+				typeSpec = typeSpec + "[]"
+			}
+
+			var init cabs.Expr
+			// Check for initializer
+			if p.curTokenIs(lexer.TokenAssign) {
+				p.nextToken() // consume '='
+				init = p.parseExprPrec(precAssign) // Use assignment precedence to stop at comma
+				if init == nil {
+					return nil
+				}
+			}
+
+			decls = append(decls, cabs.Decl{
+				TypeSpec:    typeSpec,
+				Name:        name,
+				Initializer: init,
+			})
+		}
 
 		// Check for more declarators
 		if !p.curTokenIs(lexer.TokenComma) {
@@ -640,6 +698,62 @@ func (p *Parser) parseDeclarationStatement() cabs.Stmt {
 	}
 
 	return cabs.DeclStmt{Decls: decls}
+}
+
+// parseFunctionPointerParams parses the parameter list in a function pointer type
+// Returns a string representation like "int,int" or "void"
+func (p *Parser) parseFunctionPointerParams() string {
+	p.nextToken() // consume '('
+
+	var params []string
+
+	if p.curTokenIs(lexer.TokenRParen) {
+		p.nextToken() // consume ')'
+		return ""
+	}
+
+	// Parse first parameter type
+	for !p.curTokenIs(lexer.TokenRParen) && !p.curTokenIs(lexer.TokenEOF) {
+		var paramType string
+		// Collect type qualifiers
+		for p.isTypeQualifier() {
+			p.nextToken()
+		}
+		// Get the type specifier
+		if p.isTypeSpecifier() {
+			paramType = p.curToken.Literal
+			p.nextToken()
+		}
+		// Handle pointers
+		for p.curTokenIs(lexer.TokenStar) {
+			paramType = paramType + "*"
+			p.nextToken()
+		}
+		// Skip parameter name if present
+		if p.curTokenIs(lexer.TokenIdent) {
+			p.nextToken()
+		}
+		params = append(params, paramType)
+
+		if p.curTokenIs(lexer.TokenComma) {
+			p.nextToken() // consume ','
+		} else {
+			break
+		}
+	}
+
+	if !p.expect(lexer.TokenRParen) {
+		return ""
+	}
+
+	result := ""
+	for i, param := range params {
+		if i > 0 {
+			result += ","
+		}
+		result += param
+	}
+	return result
 }
 
 func (p *Parser) parseExpressionStatement() cabs.Stmt {

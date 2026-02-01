@@ -162,12 +162,12 @@ Detailed task list to implement the parsing plan from docs/PARSING.md. The goal 
 ### M5.1: Pointer Types
 - [x] Parse pointer declarators: `int *p;`
 - [x] Multiple indirection: `int **pp;`
-- [ ] Pointer to function syntax
+- [x] Pointer to function syntax
 - [x] Add tests
 
 ### M5.2: Array Types
 - [x] Parse array declarators: `int a[10];`
-- [ ] Multi-dimensional: `int a[2][3];`
+- [x] Multi-dimensional: `int a[2][3];`
 - [ ] Variable-length arrays (VLA)
 - [x] Add tests
 
@@ -188,9 +188,9 @@ Detailed task list to implement the parsing plan from docs/PARSING.md. The goal 
 - [x] Add tests
 
 ### M5.6: Function Pointer Types
-- [ ] Parse `int (*fp)(int, int);`
-- [ ] Complex declarators
-- [ ] Add tests
+- [x] Parse `int (*fp)(int, int);`
+- [x] Complex declarators
+- [x] Add tests
 
 ---
 
