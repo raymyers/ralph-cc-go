@@ -84,21 +84,23 @@ RTLgen transforms CminorSel to RTL by:
 
 **Notes:** Created CFGBuilder with node/register allocation, label mapping, stack var tracking. ExitContext handles Sblock/Sexit for break/continue. TranslateCondition converts CminorSel conditions to RTL condition codes.
 
-## Milestone 3: Register Allocation (Virtual)
+## Milestone 3: Register Allocation (Virtual) ✅
 
 **Goal:** Assign pseudo-registers to temporaries and expressions
 
 ### Tasks
 
-- [ ] Create `pkg/rtlgen/regs.go`
-- [ ] Implement fresh register generation
-- [ ] Map CminorSel temporaries to registers
-- [ ] Handle expression evaluation:
-  - [ ] Subexpressions get temporaries
-  - [ ] Results in designated registers
-- [ ] Map function parameters to registers
-- [ ] Handle return values
-- [ ] Add tests for register assignment
+- [x] Create `pkg/rtlgen/regs.go`
+- [x] Implement fresh register generation
+- [x] Map CminorSel temporaries to registers
+- [x] Handle expression evaluation:
+  - [x] Subexpressions get temporaries
+  - [x] Results in designated registers
+- [x] Map function parameters to registers
+- [x] Handle return values
+- [x] Add tests for register assignment
+
+**Notes:** Created RegAllocator with Fresh(), FreshN(), MapVar(), LookupVar(), SetVar(), MapParams(), MapVars(), AllocResultReg(), GetResultReg(), NextRegID(), and Clone(). 13 test cases verify all register allocation functionality.
 
 ## Milestone 4: Instruction Generation
 
