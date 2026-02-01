@@ -104,10 +104,10 @@ Detailed task list to implement the parsing plan from docs/PARSING.md. The goal 
 - [x] Add tests for loops
 
 ### M3.4: For Loops
-- [ ] Add For AST node
-- [ ] Parse `for (init; cond; step) stmt`
-- [ ] Handle optional parts (e.g., `for (;;)`)
-- [ ] Add tests for for loops
+- [x] Add For AST node
+- [x] Parse `for (init; cond; step) stmt`
+- [x] Handle optional parts (e.g., `for (;;)`)
+- [x] Add tests for for loops
 
 ### M3.5: Switch Statements
 - [ ] Add Switch, Case, Default AST nodes

@@ -190,6 +190,14 @@ type DoWhile struct {
 	Cond Expr
 }
 
+// For represents a for loop
+type For struct {
+	Init Expr // may be nil
+	Cond Expr // may be nil (infinite loop)
+	Step Expr // may be nil
+	Body Stmt
+}
+
 // Block represents a compound statement (block)
 type Block struct {
 	Items []Stmt
@@ -253,6 +261,9 @@ func (While) implCabsStmt() {}
 
 func (DoWhile) implCabsNode() {}
 func (DoWhile) implCabsStmt() {}
+
+func (For) implCabsNode() {}
+func (For) implCabsStmt() {}
 
 func (Block) implCabsNode() {}
 func (Block) implCabsStmt() {}

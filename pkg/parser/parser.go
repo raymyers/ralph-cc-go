@@ -168,6 +168,8 @@ func (p *Parser) parseStatement() cabs.Stmt {
 		return p.parseWhileStatement()
 	case lexer.TokenDo:
 		return p.parseDoWhileStatement()
+	case lexer.TokenFor:
+		return p.parseForStatement()
 	case lexer.TokenLBrace:
 		return p.parseBlock()
 	default:
@@ -275,6 +277,51 @@ func (p *Parser) parseDoWhileStatement() cabs.Stmt {
 	}
 
 	return cabs.DoWhile{Body: body, Cond: cond}
+}
+
+func (p *Parser) parseForStatement() cabs.Stmt {
+	p.nextToken() // consume 'for'
+
+	if !p.expect(lexer.TokenLParen) {
+		return nil
+	}
+
+	// Parse init expression (optional)
+	var init cabs.Expr
+	if !p.curTokenIs(lexer.TokenSemicolon) {
+		init = p.parseExpression()
+	}
+
+	if !p.expect(lexer.TokenSemicolon) {
+		return nil
+	}
+
+	// Parse condition expression (optional)
+	var cond cabs.Expr
+	if !p.curTokenIs(lexer.TokenSemicolon) {
+		cond = p.parseExpression()
+	}
+
+	if !p.expect(lexer.TokenSemicolon) {
+		return nil
+	}
+
+	// Parse step expression (optional)
+	var step cabs.Expr
+	if !p.curTokenIs(lexer.TokenRParen) {
+		step = p.parseExpression()
+	}
+
+	if !p.expect(lexer.TokenRParen) {
+		return nil
+	}
+
+	body := p.parseStatement()
+	if body == nil {
+		return nil
+	}
+
+	return cabs.For{Init: init, Cond: cond, Step: step, Body: body}
 }
 
 func (p *Parser) parseReturnStatement() cabs.Stmt {

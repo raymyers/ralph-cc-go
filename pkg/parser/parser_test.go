@@ -1095,6 +1095,66 @@ func TestWhileStatement(t *testing.T) {
 	}
 }
 
+func TestForStatement(t *testing.T) {
+	tests := []struct {
+		name string
+		input string
+	}{
+		{"complete for", "int f() { for (i = 0; i < 10; i = i + 1) x = x + 1; }"},
+		{"for with block", "int f() { for (i = 0; i < 10; i++) { x++; } }"},
+		{"infinite loop", "int f() { for (;;) x++; }"},
+		{"no init", "int f() { for (; i < 10; i++) x++; }"},
+		{"no step", "int f() { for (i = 0; i < 10;) i++; }"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			l := lexer.New(tt.input)
+			p := New(l)
+			def := p.ParseDefinition()
+
+			if len(p.Errors()) > 0 {
+				t.Fatalf("parser errors: %v", p.Errors())
+			}
+
+			funDef := def.(cabs.FunDef)
+			if len(funDef.Body.Items) != 1 {
+				t.Fatalf("expected 1 statement, got %d", len(funDef.Body.Items))
+			}
+
+			_, ok := funDef.Body.Items[0].(cabs.For)
+			if !ok {
+				t.Fatalf("expected For, got %T", funDef.Body.Items[0])
+			}
+		})
+	}
+}
+
+func TestForStatementOptionalParts(t *testing.T) {
+	input := "int f() { for (;;) return 1; }"
+
+	l := lexer.New(input)
+	p := New(l)
+	def := p.ParseDefinition()
+
+	if len(p.Errors()) > 0 {
+		t.Fatalf("parser errors: %v", p.Errors())
+	}
+
+	funDef := def.(cabs.FunDef)
+	forStmt := funDef.Body.Items[0].(cabs.For)
+
+	if forStmt.Init != nil {
+		t.Error("expected nil Init")
+	}
+	if forStmt.Cond != nil {
+		t.Error("expected nil Cond")
+	}
+	if forStmt.Step != nil {
+		t.Error("expected nil Step")
+	}
+}
+
 func TestDoWhileStatement(t *testing.T) {
 	tests := []struct {
 		name  string
