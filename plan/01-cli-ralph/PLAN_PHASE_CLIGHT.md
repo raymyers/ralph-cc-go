@@ -90,12 +90,12 @@ Clight simplifies CompCert C by:
 
 ### Tasks
 
-- [ ] Create `pkg/simpllocals/transform.go`
-- [ ] Identify address-taken locals (need to stay in memory)
-- [ ] Identify non-addressable scalar locals (can use temps)
-- [ ] Transform stack locals to temporaries where possible
-- [ ] Update variable references accordingly
-- [ ] Add tests for local optimization
+- [x] Create `pkg/simpllocals/transform.go`
+- [x] Identify address-taken locals (need to stay in memory)
+- [x] Identify non-addressable scalar locals (can use temps)
+- [x] Transform stack locals to temporaries where possible
+- [x] Update variable references accordingly
+- [x] Add tests for local optimization
 
 ## Milestone 5: CLI Integration & Testing
 
