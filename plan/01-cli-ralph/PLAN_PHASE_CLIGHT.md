@@ -30,26 +30,26 @@ Clight simplifies CompCert C by:
 
 ### Tasks
 
-- [ ] Create `pkg/clight/ast.go` with Clight node interfaces
-- [ ] Define Clight expressions (subset of C - no side-effects):
-  - [ ] `Econst_int`, `Econst_float`, `Econst_long`, `Econst_single`
-  - [ ] `Evar` (variable reference)
-  - [ ] `Etempvar` (temporary variable - key difference from Cabs)
-  - [ ] `Ederef` (pointer dereference)
-  - [ ] `Eaddrof` (address-of)
-  - [ ] `Eunop`, `Ebinop` (unary/binary operators)
-  - [ ] `Ecast` (type cast)
-  - [ ] `Efield` (struct field access)
-  - [ ] `Esizeof`, `Ealignof`
-- [ ] Define Clight statements:
-  - [ ] `Sskip`, `Sassign`, `Sset` (temp assignment)
-  - [ ] `Scall` (function call as statement)
-  - [ ] `Sbuiltin` (builtin call)
-  - [ ] `Ssequence` (statement sequence)
-  - [ ] `Sifthenelse`, `Sloop`, `Sbreak`, `Scontinue`
-  - [ ] `Sreturn`, `Sswitch`, `Slabel`, `Sgoto`
-- [ ] Define function and program structures
-- [ ] Add tests for AST construction
+- [x] Create `pkg/clight/ast.go` with Clight node interfaces
+- [x] Define Clight expressions (subset of C - no side-effects):
+  - [x] `Econst_int`, `Econst_float`, `Econst_long`, `Econst_single`
+  - [x] `Evar` (variable reference)
+  - [x] `Etempvar` (temporary variable - key difference from Cabs)
+  - [x] `Ederef` (pointer dereference)
+  - [x] `Eaddrof` (address-of)
+  - [x] `Eunop`, `Ebinop` (unary/binary operators)
+  - [x] `Ecast` (type cast)
+  - [x] `Efield` (struct field access)
+  - [x] `Esizeof`, `Ealignof`
+- [x] Define Clight statements:
+  - [x] `Sskip`, `Sassign`, `Sset` (temp assignment)
+  - [x] `Scall` (function call as statement)
+  - [x] `Sbuiltin` (builtin call)
+  - [x] `Ssequence` (statement sequence)
+  - [x] `Sifthenelse`, `Sloop`, `Sbreak`, `Scontinue`
+  - [x] `Sreturn`, `Sswitch`, `Slabel`, `Sgoto`
+- [x] Define function and program structures
+- [x] Add tests for AST construction
 
 ## Milestone 2: Type System Foundation
 
@@ -57,13 +57,13 @@ Clight simplifies CompCert C by:
 
 ### Tasks
 
-- [ ] Create `pkg/ctypes/types.go` with C type definitions
-- [ ] Define basic types: `Tvoid`, `Tint`, `Tfloat`, `Tlong`
-- [ ] Define composite types: `Tpointer`, `Tarray`, `Tfunction`
-- [ ] Define struct/union types: `Tstruct`, `Tunion`
-- [ ] Add type attributes (signedness, size)
-- [ ] Implement type comparison/equality
-- [ ] Add tests for type operations
+- [x] Create `pkg/ctypes/types.go` with C type definitions
+- [x] Define basic types: `Tvoid`, `Tint`, `Tfloat`, `Tlong`
+- [x] Define composite types: `Tpointer`, `Tarray`, `Tfunction`
+- [x] Define struct/union types: `Tstruct`, `Tunion`
+- [x] Add type attributes (signedness, size)
+- [x] Implement type comparison/equality
+- [x] Add tests for type operations
 
 ## Milestone 3: SimplExpr Transformation
 
