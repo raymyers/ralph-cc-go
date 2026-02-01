@@ -139,12 +139,14 @@ Selection transforms Cminor to CminorSel by:
 
 ### Tasks
 
-- [ ] Create `pkg/selection/stmt.go`
-- [ ] Transform stores with addressing mode selection
-- [ ] Transform conditionals with condition selection
-- [ ] Transform loops (mostly unchanged)
-- [ ] Handle function calls
-- [ ] Add tests for statement selection
+- [x] Create `pkg/selection/stmt.go`
+- [x] Transform stores with addressing mode selection
+- [x] Transform conditionals with condition selection
+- [x] Transform loops (mostly unchanged)
+- [x] Handle function calls
+- [x] Add tests for statement selection
+
+**Notes:** Created `pkg/selection/stmt.go` with SelectStmt handling all Cminor statement types (Sskip, Sassign, Sstore, Scall, Stailcall, Sbuiltin, Sseq, Sifthenelse, Sloop, Sblock, Sexit, Sswitch, Sreturn, Slabel, Sgoto). Stores use SelectAddressing for optimal addressing modes. Conditionals use SelectCondition for proper condition type selection. Added SelectFunction and SelectProgram for full program transformation (populates globals map for addressing mode selection). Comprehensive tests cover all statement types including program-level global detection.
 
 ## Milestone 7: CLI Integration & Testing
 
