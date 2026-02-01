@@ -202,8 +202,8 @@ Detailed task list to implement the parsing plan from docs/PARSING.md. The goal 
 - [x] Add tests for multi-function files
 
 ### M6.2: Preprocessor Artifacts
-- [ ] Handle `#line` directives for source locations
-- [ ] (Preprocessing itself done externally)
+- [x] Handle `#line` directives for source locations
+- [x] (Preprocessing itself done externally)
 
 ### M6.3: CLI Integration
 - [x] Wire parser to `-dparse` flag

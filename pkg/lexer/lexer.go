@@ -6,12 +6,13 @@ import (
 
 // Lexer tokenizes C source code
 type Lexer struct {
-	input   string
-	pos     int  // current position in input
-	readPos int  // next reading position
-	ch      byte // current character
-	line    int
-	column  int
+	input    string
+	pos      int    // current position in input
+	readPos  int    // next reading position
+	ch       byte   // current character
+	line     int
+	column   int
+	filename string // current filename from #line directive
 }
 
 // New creates a new Lexer for the given input
@@ -249,8 +250,17 @@ func (l *Lexer) newToken(tokenType TokenType, ch byte) Token {
 }
 
 func (l *Lexer) skipWhitespace() {
-	for l.ch == ' ' || l.ch == '\t' || l.ch == '\n' || l.ch == '\r' {
-		l.readChar()
+	for {
+		for l.ch == ' ' || l.ch == '\t' || l.ch == '\n' || l.ch == '\r' {
+			l.readChar()
+		}
+		// Handle #line directives (preprocessor output)
+		if l.ch == '#' {
+			if l.skipLineDirective() {
+				continue
+			}
+		}
+		break
 	}
 }
 
@@ -282,6 +292,102 @@ func (l *Lexer) skipComments() {
 			break
 		}
 	}
+}
+
+// skipLineDirective handles #line directives from preprocessor output
+// Format: #line <number> ["<filename>"]
+// Also handles: # <number> ["<filename>"] (GCC style)
+func (l *Lexer) skipLineDirective() bool {
+	if l.ch != '#' {
+		return false
+	}
+
+	// Save position in case this isn't a #line directive
+	startPos := l.pos
+	startReadPos := l.readPos
+	startLine := l.line
+	startColumn := l.column
+	startCh := l.ch
+
+	l.readChar() // consume '#'
+
+	// Skip whitespace after #
+	for l.ch == ' ' || l.ch == '\t' {
+		l.readChar()
+	}
+
+	// Check for "line" keyword (optional in GCC output)
+	if l.ch == 'l' {
+		// Try to read "line"
+		if l.readPos+3 <= len(l.input) && l.input[l.pos:l.pos+4] == "line" {
+			l.readChar() // l
+			l.readChar() // i
+			l.readChar() // n
+			l.readChar() // e
+			// Skip whitespace after "line"
+			for l.ch == ' ' || l.ch == '\t' {
+				l.readChar()
+			}
+		}
+	}
+
+	// Read line number
+	if !isDigit(l.ch) {
+		// Not a valid #line directive, restore position
+		l.pos = startPos
+		l.readPos = startReadPos
+		l.line = startLine
+		l.column = startColumn
+		l.ch = startCh
+		return false
+	}
+
+	lineNum := 0
+	for isDigit(l.ch) {
+		lineNum = lineNum*10 + int(l.ch-'0')
+		l.readChar()
+	}
+
+	// Skip whitespace
+	for l.ch == ' ' || l.ch == '\t' {
+		l.readChar()
+	}
+
+	// Optional filename
+	if l.ch == '"' {
+		l.readChar() // consume opening quote
+		filenameStart := l.pos
+		for l.ch != '"' && l.ch != '\n' && l.ch != 0 {
+			if l.ch == '\\' {
+				l.readChar() // skip escape char
+			}
+			l.readChar()
+		}
+		l.filename = l.input[filenameStart:l.pos]
+		if l.ch == '"' {
+			l.readChar() // consume closing quote
+		}
+	}
+
+	// Skip to end of line (there may be flags like 1 2 3 4 after filename)
+	for l.ch != '\n' && l.ch != 0 {
+		l.readChar()
+	}
+
+	// At this point, l.ch == '\n' (we stopped before consuming the newline).
+	// The #line directive specifies what line number the NEXT line should be.
+	// When skipWhitespace consumes this newline via readChar(), the line WON'T
+	// be incremented because readChar() increments when the NEW char is '\n'.
+	// So we set l.line = lineNum directly, and that will be the line number
+	// for the first token on the next line.
+	l.line = lineNum
+
+	return true
+}
+
+// Filename returns the current filename from #line directives
+func (l *Lexer) Filename() string {
+	return l.filename
 }
 
 func (l *Lexer) readIdentifier() string {
