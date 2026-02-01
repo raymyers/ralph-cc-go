@@ -16,6 +16,9 @@ import (
 	"github.com/raymyers/ralph-cc/pkg/cshmgen"
 	"github.com/raymyers/ralph-cc/pkg/lexer"
 	"github.com/raymyers/ralph-cc/pkg/parser"
+	"github.com/raymyers/ralph-cc/pkg/rtl"
+	"github.com/raymyers/ralph-cc/pkg/rtlgen"
+	"github.com/raymyers/ralph-cc/pkg/selection"
 	"github.com/spf13/cobra"
 )
 
@@ -41,11 +44,10 @@ type debugFlagInfo struct {
 }
 
 // debugFlags maps flag names to descriptions for unimplemented warnings
-// Note: dparse, dclight, dcsharpminor, and dcminor are handled separately as they're implemented
+// Note: dparse, dclight, dcsharpminor, dcminor, and drtl are handled separately as they're implemented
 var debugFlags = map[string]debugFlagInfo{
 	"dc":    {&dC, "dump CompCert C"},
 	"dasm":  {&dAsm, "dump assembly"},
-	"drtl":  {&dRTL, "dump RTL"},
 	"dltl":  {&dLTL, "dump LTL"},
 	"dmach": {&dMach, "dump Mach"},
 }
@@ -140,6 +142,11 @@ CompCert design with the goal of equivalent output on each IR.`,
 			// Handle -dcminor: transform to Cminor and dump
 			if dCminor {
 				return doCminor(filename, out, errOut)
+			}
+
+			// Handle -drtl: transform to RTL and dump
+			if dRTL {
+				return doRTL(filename, out, errOut)
 			}
 
 			fmt.Fprintf(errOut, "ralph-cc: compiling %s\n", filename)
@@ -383,4 +390,71 @@ func cminorOutputFilename(filename string) string {
 		return filename[:len(filename)-len(ext)] + ".cminor"
 	}
 	return filename + ".cminor"
+}
+
+// doRTL transforms the file to RTL and writes output to .rtl.0 file
+func doRTL(filename string, out, errOut io.Writer) error {
+	content, err := os.ReadFile(filename)
+	if err != nil {
+		fmt.Fprintf(errOut, "ralph-cc: error reading %s: %v\n", filename, err)
+		return err
+	}
+
+	// Parse
+	l := lexer.New(string(content))
+	p := parser.New(l)
+	program := p.ParseProgram()
+
+	if len(p.Errors()) > 0 {
+		for _, e := range p.Errors() {
+			fmt.Fprintf(errOut, "%s: %s\n", filename, e)
+		}
+		return fmt.Errorf("parsing failed with %d errors", len(p.Errors()))
+	}
+
+	// Transform to Clight
+	clightProg := clightgen.TranslateProgram(program)
+
+	// Transform to Csharpminor
+	csharpminorProg := cshmgen.TranslateProgram(clightProg)
+
+	// Transform to Cminor
+	cminorProg := cminorgen.TransformProgram(csharpminorProg)
+
+	// Transform to CminorSel
+	selCtx := selection.NewSelectionContext(nil, nil)
+	cminorselProg := selCtx.SelectProgram(*cminorProg)
+
+	// Transform to RTL
+	rtlProg := rtlgen.TranslateProgram(cminorselProg)
+
+	// Compute output filename: input.c -> input.rtl.0
+	outputFilename := rtlOutputFilename(filename)
+
+	// Create output file
+	outFile, err := os.Create(outputFilename)
+	if err != nil {
+		fmt.Fprintf(errOut, "ralph-cc: error creating %s: %v\n", outputFilename, err)
+		return err
+	}
+	defer outFile.Close()
+
+	// Print the RTL AST to the file
+	printer := rtl.NewPrinter(outFile)
+	printer.PrintProgram(rtlProg)
+
+	// Also print to stdout for convenience
+	printer = rtl.NewPrinter(out)
+	printer.PrintProgram(rtlProg)
+
+	return nil
+}
+
+// rtlOutputFilename returns the output filename for -drtl
+func rtlOutputFilename(filename string) string {
+	ext := ".c"
+	if strings.HasSuffix(filename, ext) {
+		return filename[:len(filename)-len(ext)] + ".rtl.0"
+	}
+	return filename + ".rtl.0"
 }

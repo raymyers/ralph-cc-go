@@ -185,17 +185,19 @@ RTLgen transforms CminorSel to RTL by:
 
 **Notes:** Created StmtTranslator with all CminorSel statement types: Sskip, Sassign, Sstore, Scall, Stailcall, Sbuiltin, Sseq, Sifthenelse, Sloop, Sblock, Sexit, Sswitch (cascading if-else), Sreturn, Slabel, Sgoto. TranslateFunction and TranslateProgram for full program translation. 18 test functions verify all statement translation.
 
-## Milestone 7: CLI Integration & Testing
+## Milestone 7: CLI Integration \## Milestone 7: CLI Integration & Testing Testing ✅
 
 **Goal:** Wire RTL generation to CLI, test against CompCert
 
 ### Tasks
 
-- [ ] Add `-drtl` flag implementation
-- [ ] Create `pkg/rtl/printer.go` matching CompCert output format
-- [ ] Handle RTL dump numbering (`.rtl.0` for initial)
-- [ ] Create test cases in `testdata/rtl/`
-- [ ] Create `testdata/rtl.yaml` for parameterized tests
+- [x] Add `-drtl` flag implementation
+- [x] Create `pkg/rtl/printer.go` matching CompCert output format
+- [x] Handle RTL dump numbering (`.rtl.0` for initial)
+- [x] Create test cases in `testdata/rtl/`
+- [x] Create `testdata/rtl.yaml` for parameterized tests
+
+**Notes:** Added -drtl flag implementation in main.go. Created pkg/rtl/printer.go matching CompCert output format. Output file is .rtl.0 (initial RTL). 10 printer tests verify output formatting. CLI tests verify -drtl flag and output file creation.
 - [ ] Test against CompCert output (using container-use)
 - [ ] Document any intentional deviations
 
