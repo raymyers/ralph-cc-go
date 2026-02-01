@@ -1521,3 +1521,646 @@ func exprString(e cabs.Expr) string {
 		return "?"
 	}
 }
+
+func TestVariableDeclaration(t *testing.T) {
+	tests := []struct {
+		name      string
+		input     string
+		declCount int
+		typeName  string
+		varName   string
+		hasInit   bool
+	}{
+		{
+			name:      "simple int declaration",
+			input:     `int f() { int x; return 0; }`,
+			declCount: 1,
+			typeName:  "int",
+			varName:   "x",
+			hasInit:   false,
+		},
+		{
+			name:      "declaration with initializer",
+			input:     `int f() { int x = 1; return 0; }`,
+			declCount: 1,
+			typeName:  "int",
+			varName:   "x",
+			hasInit:   true,
+		},
+		{
+			name:      "multiple declarations",
+			input:     `int f() { int x, y; return 0; }`,
+			declCount: 2,
+			typeName:  "int",
+			varName:   "x", // first decl
+			hasInit:   false,
+		},
+		{
+			name:      "pointer declaration",
+			input:     `int f() { int *p; return 0; }`,
+			declCount: 1,
+			typeName:  "int*",
+			varName:   "p",
+			hasInit:   false,
+		},
+		{
+			name:      "char declaration",
+			input:     `int f() { char c; return 0; }`,
+			declCount: 1,
+			typeName:  "char",
+			varName:   "c",
+			hasInit:   false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			l := lexer.New(tt.input)
+			p := New(l)
+			def := p.ParseDefinition()
+
+			if len(p.Errors()) > 0 {
+				t.Fatalf("parser errors: %v", p.Errors())
+			}
+
+			funDef := def.(cabs.FunDef)
+			declStmt, ok := funDef.Body.Items[0].(cabs.DeclStmt)
+			if !ok {
+				t.Fatalf("expected DeclStmt, got %T", funDef.Body.Items[0])
+			}
+
+			if len(declStmt.Decls) != tt.declCount {
+				t.Errorf("expected %d declarations, got %d", tt.declCount, len(declStmt.Decls))
+			}
+
+			if declStmt.Decls[0].TypeSpec != tt.typeName {
+				t.Errorf("expected type %q, got %q", tt.typeName, declStmt.Decls[0].TypeSpec)
+			}
+
+			if declStmt.Decls[0].Name != tt.varName {
+				t.Errorf("expected name %q, got %q", tt.varName, declStmt.Decls[0].Name)
+			}
+
+			if tt.hasInit && declStmt.Decls[0].Initializer == nil {
+				t.Error("expected initializer, got nil")
+			}
+			if !tt.hasInit && declStmt.Decls[0].Initializer != nil {
+				t.Error("expected no initializer")
+			}
+		})
+	}
+}
+
+func TestFunctionParameters(t *testing.T) {
+	tests := []struct {
+		name       string
+		input      string
+		paramCount int
+		params     []struct {
+			typeSpec string
+			name     string
+		}
+	}{
+		{
+			name:       "no parameters",
+			input:      `int f() { return 0; }`,
+			paramCount: 0,
+			params:     nil,
+		},
+		{
+			name:       "void parameter",
+			input:      `int f(void) { return 0; }`,
+			paramCount: 0,
+			params:     nil,
+		},
+		{
+			name:       "one parameter",
+			input:      `int f(int x) { return 0; }`,
+			paramCount: 1,
+			params: []struct {
+				typeSpec string
+				name     string
+			}{
+				{"int", "x"},
+			},
+		},
+		{
+			name:       "two parameters",
+			input:      `int add(int a, int b) { return 0; }`,
+			paramCount: 2,
+			params: []struct {
+				typeSpec string
+				name     string
+			}{
+				{"int", "a"},
+				{"int", "b"},
+			},
+		},
+		{
+			name:       "pointer parameter",
+			input:      `int f(int *p) { return 0; }`,
+			paramCount: 1,
+			params: []struct {
+				typeSpec string
+				name     string
+			}{
+				{"int*", "p"},
+			},
+		},
+		{
+			name:       "mixed parameters",
+			input:      `int f(int x, char *s) { return 0; }`,
+			paramCount: 2,
+			params: []struct {
+				typeSpec string
+				name     string
+			}{
+				{"int", "x"},
+				{"char*", "s"},
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			l := lexer.New(tt.input)
+			p := New(l)
+			def := p.ParseDefinition()
+
+			if len(p.Errors()) > 0 {
+				t.Fatalf("parser errors: %v", p.Errors())
+			}
+
+			funDef := def.(cabs.FunDef)
+			if len(funDef.Params) != tt.paramCount {
+				t.Fatalf("expected %d parameters, got %d", tt.paramCount, len(funDef.Params))
+			}
+
+			for i, expected := range tt.params {
+				if funDef.Params[i].TypeSpec != expected.typeSpec {
+					t.Errorf("param %d type: expected %q, got %q", i, expected.typeSpec, funDef.Params[i].TypeSpec)
+				}
+				if funDef.Params[i].Name != expected.name {
+					t.Errorf("param %d name: expected %q, got %q", i, expected.name, funDef.Params[i].Name)
+				}
+			}
+		})
+	}
+}
+
+func TestTypeQualifiersInDeclaration(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    string
+		typeName string
+		varName  string
+	}{
+		{
+			name:     "const declaration",
+			input:    `int f() { const int x = 1; return 0; }`,
+			typeName: "int",
+			varName:  "x",
+		},
+		{
+			name:     "volatile declaration",
+			input:    `int f() { volatile int x; return 0; }`,
+			typeName: "int",
+			varName:  "x",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			l := lexer.New(tt.input)
+			p := New(l)
+			def := p.ParseDefinition()
+
+			if len(p.Errors()) > 0 {
+				t.Fatalf("parser errors: %v", p.Errors())
+			}
+
+			funDef := def.(cabs.FunDef)
+			declStmt, ok := funDef.Body.Items[0].(cabs.DeclStmt)
+			if !ok {
+				t.Fatalf("expected DeclStmt, got %T", funDef.Body.Items[0])
+			}
+
+			if declStmt.Decls[0].TypeSpec != tt.typeName {
+				t.Errorf("expected type %q, got %q", tt.typeName, declStmt.Decls[0].TypeSpec)
+			}
+
+			if declStmt.Decls[0].Name != tt.varName {
+				t.Errorf("expected name %q, got %q", tt.varName, declStmt.Decls[0].Name)
+			}
+		})
+	}
+}
+
+func TestStorageClassSpecifiers(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    string
+		typeName string
+		varName  string
+	}{
+		{
+			name:     "static declaration",
+			input:    `int f() { static int x; return 0; }`,
+			typeName: "int",
+			varName:  "x",
+		},
+		{
+			name:     "auto declaration",
+			input:    `int f() { auto int x; return 0; }`,
+			typeName: "int",
+			varName:  "x",
+		},
+		{
+			name:     "register declaration",
+			input:    `int f() { register int x; return 0; }`,
+			typeName: "int",
+			varName:  "x",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			l := lexer.New(tt.input)
+			p := New(l)
+			def := p.ParseDefinition()
+
+			if len(p.Errors()) > 0 {
+				t.Fatalf("parser errors: %v", p.Errors())
+			}
+
+			funDef := def.(cabs.FunDef)
+			declStmt, ok := funDef.Body.Items[0].(cabs.DeclStmt)
+			if !ok {
+				t.Fatalf("expected DeclStmt, got %T", funDef.Body.Items[0])
+			}
+
+			if declStmt.Decls[0].TypeSpec != tt.typeName {
+				t.Errorf("expected type %q, got %q", tt.typeName, declStmt.Decls[0].TypeSpec)
+			}
+
+			if declStmt.Decls[0].Name != tt.varName {
+				t.Errorf("expected name %q, got %q", tt.varName, declStmt.Decls[0].Name)
+			}
+		})
+	}
+}
+
+func TestArrayDeclaration(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    string
+		typeName string
+		varName  string
+	}{
+		{
+			name:     "simple array",
+			input:    `int f() { int arr[10]; return 0; }`,
+			typeName: "int[]",
+			varName:  "arr",
+		},
+		{
+			name:     "char array",
+			input:    `int f() { char buf[256]; return 0; }`,
+			typeName: "char[]",
+			varName:  "buf",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			l := lexer.New(tt.input)
+			p := New(l)
+			def := p.ParseDefinition()
+
+			if len(p.Errors()) > 0 {
+				t.Fatalf("parser errors: %v", p.Errors())
+			}
+
+			funDef := def.(cabs.FunDef)
+			declStmt, ok := funDef.Body.Items[0].(cabs.DeclStmt)
+			if !ok {
+				t.Fatalf("expected DeclStmt, got %T", funDef.Body.Items[0])
+			}
+
+			if declStmt.Decls[0].TypeSpec != tt.typeName {
+				t.Errorf("expected type %q, got %q", tt.typeName, declStmt.Decls[0].TypeSpec)
+			}
+
+			if declStmt.Decls[0].Name != tt.varName {
+				t.Errorf("expected name %q, got %q", tt.varName, declStmt.Decls[0].Name)
+			}
+		})
+	}
+}
+
+func TestPointerDeclaration(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    string
+		typeName string
+		varName  string
+	}{
+		{
+			name:     "simple pointer",
+			input:    `int f() { int *p; return 0; }`,
+			typeName: "int*",
+			varName:  "p",
+		},
+		{
+			name:     "double pointer",
+			input:    `int f() { int **pp; return 0; }`,
+			typeName: "int**",
+			varName:  "pp",
+		},
+		{
+			name:     "void pointer",
+			input:    `int f() { void *vp; return 0; }`,
+			typeName: "void*",
+			varName:  "vp",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			l := lexer.New(tt.input)
+			p := New(l)
+			def := p.ParseDefinition()
+
+			if len(p.Errors()) > 0 {
+				t.Fatalf("parser errors: %v", p.Errors())
+			}
+
+			funDef := def.(cabs.FunDef)
+			declStmt, ok := funDef.Body.Items[0].(cabs.DeclStmt)
+			if !ok {
+				t.Fatalf("expected DeclStmt, got %T", funDef.Body.Items[0])
+			}
+
+			if declStmt.Decls[0].TypeSpec != tt.typeName {
+				t.Errorf("expected type %q, got %q", tt.typeName, declStmt.Decls[0].TypeSpec)
+			}
+
+			if declStmt.Decls[0].Name != tt.varName {
+				t.Errorf("expected name %q, got %q", tt.varName, declStmt.Decls[0].Name)
+			}
+		})
+	}
+}
+
+func TestTypedefDeclaration(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    string
+		typeName string
+		defName  string
+	}{
+		{
+			name:     "simple typedef",
+			input:    `typedef int myint; int f() { return 0; }`,
+			typeName: "int",
+			defName:  "myint",
+		},
+		{
+			name:     "pointer typedef",
+			input:    `typedef int* intptr; int f() { return 0; }`,
+			typeName: "int*",
+			defName:  "intptr",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			l := lexer.New(tt.input)
+			p := New(l)
+			def := p.ParseDefinition()
+
+			if len(p.Errors()) > 0 {
+				t.Fatalf("parser errors: %v", p.Errors())
+			}
+
+			typedefDef, ok := def.(cabs.TypedefDef)
+			if !ok {
+				t.Fatalf("expected TypedefDef, got %T", def)
+			}
+
+			if typedefDef.TypeSpec != tt.typeName {
+				t.Errorf("expected type %q, got %q", tt.typeName, typedefDef.TypeSpec)
+			}
+
+			if typedefDef.Name != tt.defName {
+				t.Errorf("expected name %q, got %q", tt.defName, typedefDef.Name)
+			}
+		})
+	}
+}
+
+func TestTypedefUse(t *testing.T) {
+	// Test that typedef names are recognized as types in subsequent parsing
+	input := `typedef int myint; myint f() { return 0; }`
+
+	l := lexer.New(input)
+	p := New(l)
+
+	// First parse typedef
+	def1 := p.ParseDefinition()
+	if len(p.Errors()) > 0 {
+		t.Fatalf("parser errors on typedef: %v", p.Errors())
+	}
+
+	_, ok := def1.(cabs.TypedefDef)
+	if !ok {
+		t.Fatalf("first def should be TypedefDef, got %T", def1)
+	}
+
+	// Parse function using typedef
+	def2 := p.ParseDefinition()
+	if len(p.Errors()) > 0 {
+		t.Fatalf("parser errors on function: %v", p.Errors())
+	}
+
+	funDef, ok := def2.(cabs.FunDef)
+	if !ok {
+		t.Fatalf("second def should be FunDef, got %T", def2)
+	}
+
+	if funDef.ReturnType != "myint" {
+		t.Errorf("expected return type 'myint', got %q", funDef.ReturnType)
+	}
+}
+
+func TestStructDefinition(t *testing.T) {
+	tests := []struct {
+		name       string
+		input      string
+		structName string
+		fieldCount int
+		fields     []struct {
+			typeSpec string
+			name     string
+		}
+	}{
+		{
+			name:       "simple struct",
+			input:      `struct Point { int x; int y; };`,
+			structName: "Point",
+			fieldCount: 2,
+			fields: []struct {
+				typeSpec string
+				name     string
+			}{
+				{"int", "x"},
+				{"int", "y"},
+			},
+		},
+		{
+			name:       "struct with pointer field",
+			input:      `struct Node { int value; int *next; };`,
+			structName: "Node",
+			fieldCount: 2,
+			fields: []struct {
+				typeSpec string
+				name     string
+			}{
+				{"int", "value"},
+				{"int*", "next"},
+			},
+		},
+		{
+			name:       "anonymous struct",
+			input:      `struct { int x; };`,
+			structName: "",
+			fieldCount: 1,
+			fields: []struct {
+				typeSpec string
+				name     string
+			}{
+				{"int", "x"},
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			l := lexer.New(tt.input)
+			p := New(l)
+			def := p.ParseDefinition()
+
+			if len(p.Errors()) > 0 {
+				t.Fatalf("parser errors: %v", p.Errors())
+			}
+
+			structDef, ok := def.(cabs.StructDef)
+			if !ok {
+				t.Fatalf("expected StructDef, got %T", def)
+			}
+
+			if structDef.Name != tt.structName {
+				t.Errorf("expected name %q, got %q", tt.structName, structDef.Name)
+			}
+
+			if len(structDef.Fields) != tt.fieldCount {
+				t.Fatalf("expected %d fields, got %d", tt.fieldCount, len(structDef.Fields))
+			}
+
+			for i, expected := range tt.fields {
+				if structDef.Fields[i].TypeSpec != expected.typeSpec {
+					t.Errorf("field %d type: expected %q, got %q", i, expected.typeSpec, structDef.Fields[i].TypeSpec)
+				}
+				if structDef.Fields[i].Name != expected.name {
+					t.Errorf("field %d name: expected %q, got %q", i, expected.name, structDef.Fields[i].Name)
+				}
+			}
+		})
+	}
+}
+
+func TestUnionDefinition(t *testing.T) {
+	input := `union Value { int i; float f; };`
+
+	l := lexer.New(input)
+	p := New(l)
+	def := p.ParseDefinition()
+
+	if len(p.Errors()) > 0 {
+		t.Fatalf("parser errors: %v", p.Errors())
+	}
+
+	unionDef, ok := def.(cabs.UnionDef)
+	if !ok {
+		t.Fatalf("expected UnionDef, got %T", def)
+	}
+
+	if unionDef.Name != "Value" {
+		t.Errorf("expected name 'Value', got %q", unionDef.Name)
+	}
+
+	if len(unionDef.Fields) != 2 {
+		t.Fatalf("expected 2 fields, got %d", len(unionDef.Fields))
+	}
+
+	if unionDef.Fields[0].TypeSpec != "int" || unionDef.Fields[0].Name != "i" {
+		t.Errorf("unexpected first field: %v", unionDef.Fields[0])
+	}
+
+	if unionDef.Fields[1].TypeSpec != "float" || unionDef.Fields[1].Name != "f" {
+		t.Errorf("unexpected second field: %v", unionDef.Fields[1])
+	}
+}
+
+func TestEnumDefinition(t *testing.T) {
+	tests := []struct {
+		name       string
+		input      string
+		enumName   string
+		valueCount int
+	}{
+		{
+			name:       "simple enum",
+			input:      `enum Color { RED, GREEN, BLUE };`,
+			enumName:   "Color",
+			valueCount: 3,
+		},
+		{
+			name:       "enum with explicit values",
+			input:      `enum Status { OK = 0, ERROR = 1 };`,
+			enumName:   "Status",
+			valueCount: 2,
+		},
+		{
+			name:       "anonymous enum",
+			input:      `enum { A, B, C };`,
+			enumName:   "",
+			valueCount: 3,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			l := lexer.New(tt.input)
+			p := New(l)
+			def := p.ParseDefinition()
+
+			if len(p.Errors()) > 0 {
+				t.Fatalf("parser errors: %v", p.Errors())
+			}
+
+			enumDef, ok := def.(cabs.EnumDef)
+			if !ok {
+				t.Fatalf("expected EnumDef, got %T", def)
+			}
+
+			if enumDef.Name != tt.enumName {
+				t.Errorf("expected name %q, got %q", tt.enumName, enumDef.Name)
+			}
+
+			if len(enumDef.Values) != tt.valueCount {
+				t.Errorf("expected %d values, got %d", tt.valueCount, len(enumDef.Values))
+			}
+		})
+	}
+}

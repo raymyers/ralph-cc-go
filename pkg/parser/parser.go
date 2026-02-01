@@ -90,9 +90,38 @@ func (p *Parser) expect(t lexer.TokenType) bool {
 	return false
 }
 
-// ParseDefinition parses a top-level definition (function)
+// ParseDefinition parses a top-level definition (function, typedef, struct, union, or enum)
 func (p *Parser) ParseDefinition() cabs.Definition {
-	// For now, only parse function definitions: type name() { body }
+	// Check for typedef
+	if p.curTokenIs(lexer.TokenTypedef) {
+		return p.parseTypedef()
+	}
+
+	// Check for struct definition
+	if p.curTokenIs(lexer.TokenStruct) {
+		return p.parseStructOrUnion(false)
+	}
+
+	// Check for union definition
+	if p.curTokenIs(lexer.TokenUnion) {
+		return p.parseStructOrUnion(true)
+	}
+
+	// Check for enum definition
+	if p.curTokenIs(lexer.TokenEnum) {
+		return p.parseEnumDef()
+	}
+
+	// Skip storage class specifiers for now
+	for p.isStorageClassSpecifier() {
+		p.nextToken()
+	}
+
+	// Skip type qualifiers
+	for p.isTypeQualifier() {
+		p.nextToken()
+	}
+
 	if !p.isTypeSpecifier() {
 		p.addError(fmt.Sprintf("expected type specifier, got %s", p.curToken.Type))
 		return nil
@@ -101,6 +130,20 @@ func (p *Parser) ParseDefinition() cabs.Definition {
 	returnType := p.curToken.Literal
 	p.nextToken()
 
+	// Handle struct/union after seeing the keyword but followed by a definition body
+	// (e.g., "struct Point { int x; int y; };")
+	if (returnType == "struct" || returnType == "union") && p.curTokenIs(lexer.TokenIdent) && p.peekTokenIs(lexer.TokenLBrace) {
+		name := p.curToken.Literal
+		p.nextToken() // consume name
+		return p.parseStructBody(name, returnType == "union")
+	}
+
+	// Handle pointer in return type
+	for p.curTokenIs(lexer.TokenStar) {
+		returnType = returnType + "*"
+		p.nextToken()
+	}
+
 	if !p.curTokenIs(lexer.TokenIdent) {
 		p.addError(fmt.Sprintf("expected function name, got %s", p.curToken.Type))
 		return nil
@@ -108,13 +151,18 @@ func (p *Parser) ParseDefinition() cabs.Definition {
 	name := p.curToken.Literal
 	p.nextToken()
 
-	// Parameter list (empty for now)
+	// Parameter list
 	if !p.expect(lexer.TokenLParen) {
 		return nil
 	}
-	if !p.expect(lexer.TokenRParen) {
+
+	params := p.parseParameterList()
+
+	if !p.curTokenIs(lexer.TokenRParen) {
+		p.addError(fmt.Sprintf("expected ')' after parameters, got %s", p.curToken.Type))
 		return nil
 	}
+	p.nextToken() // consume ')'
 
 	// Function body
 	if !p.curTokenIs(lexer.TokenLBrace) {
@@ -126,19 +174,317 @@ func (p *Parser) ParseDefinition() cabs.Definition {
 	return cabs.FunDef{
 		ReturnType: returnType,
 		Name:       name,
+		Params:     params,
 		Body:       body,
 	}
 }
 
+// parseStructOrUnion parses a struct or union definition
+func (p *Parser) parseStructOrUnion(isUnion bool) cabs.Definition {
+	p.nextToken() // consume 'struct' or 'union'
+
+	// Check for struct name
+	name := ""
+	if p.curTokenIs(lexer.TokenIdent) {
+		name = p.curToken.Literal
+		p.nextToken()
+	}
+
+	// If no body, this is just a forward declaration or use of existing type
+	if !p.curTokenIs(lexer.TokenLBrace) {
+		// Forward declaration: struct Name;
+		if p.curTokenIs(lexer.TokenSemicolon) {
+			p.nextToken()
+			if isUnion {
+				return cabs.UnionDef{Name: name, Fields: nil}
+			}
+			return cabs.StructDef{Name: name, Fields: nil}
+		}
+		p.addError(fmt.Sprintf("expected '{' or ';' after struct/union name, got %s", p.curToken.Type))
+		return nil
+	}
+
+	return p.parseStructBody(name, isUnion)
+}
+
+// parseStructBody parses the body of a struct or union definition
+func (p *Parser) parseStructBody(name string, isUnion bool) cabs.Definition {
+	p.nextToken() // consume '{'
+
+	var fields []cabs.StructField
+
+	for !p.curTokenIs(lexer.TokenRBrace) && !p.curTokenIs(lexer.TokenEOF) {
+		// Parse field: type name;
+		if !p.isTypeSpecifier() && !p.isTypeQualifier() {
+			p.addError(fmt.Sprintf("expected type specifier in struct field, got %s", p.curToken.Type))
+			p.nextToken()
+			continue
+		}
+
+		// Skip type qualifiers
+		for p.isTypeQualifier() {
+			p.nextToken()
+		}
+
+		typeSpec := p.curToken.Literal
+		p.nextToken()
+
+		// Handle pointer types
+		for p.curTokenIs(lexer.TokenStar) {
+			typeSpec = typeSpec + "*"
+			p.nextToken()
+		}
+
+		// Field name
+		if !p.curTokenIs(lexer.TokenIdent) {
+			p.addError(fmt.Sprintf("expected field name, got %s", p.curToken.Type))
+			continue
+		}
+		fieldName := p.curToken.Literal
+		p.nextToken()
+
+		// Handle array fields
+		for p.curTokenIs(lexer.TokenLBracket) {
+			p.nextToken() // consume '['
+			for !p.curTokenIs(lexer.TokenRBracket) && !p.curTokenIs(lexer.TokenEOF) {
+				p.nextToken()
+			}
+			if p.curTokenIs(lexer.TokenRBracket) {
+				p.nextToken()
+			}
+			typeSpec = typeSpec + "[]"
+		}
+
+		fields = append(fields, cabs.StructField{TypeSpec: typeSpec, Name: fieldName})
+
+		// Expect semicolon
+		if !p.expect(lexer.TokenSemicolon) {
+			continue
+		}
+	}
+
+	if !p.curTokenIs(lexer.TokenRBrace) {
+		p.addError(fmt.Sprintf("expected '}' at end of struct body, got %s", p.curToken.Type))
+		return nil
+	}
+	p.nextToken() // consume '}'
+
+	// Optional trailing semicolon for struct definition
+	if p.curTokenIs(lexer.TokenSemicolon) {
+		p.nextToken()
+	}
+
+	if isUnion {
+		return cabs.UnionDef{Name: name, Fields: fields}
+	}
+	return cabs.StructDef{Name: name, Fields: fields}
+}
+
+// parseEnumDef parses an enum definition
+func (p *Parser) parseEnumDef() cabs.Definition {
+	p.nextToken() // consume 'enum'
+
+	name := ""
+	if p.curTokenIs(lexer.TokenIdent) {
+		name = p.curToken.Literal
+		p.nextToken()
+	}
+
+	if !p.curTokenIs(lexer.TokenLBrace) {
+		// Forward declaration
+		if p.curTokenIs(lexer.TokenSemicolon) {
+			p.nextToken()
+			return cabs.EnumDef{Name: name, Values: nil}
+		}
+		p.addError(fmt.Sprintf("expected '{' or ';' after enum name, got %s", p.curToken.Type))
+		return nil
+	}
+	p.nextToken() // consume '{'
+
+	var values []cabs.EnumVal
+
+	for !p.curTokenIs(lexer.TokenRBrace) && !p.curTokenIs(lexer.TokenEOF) {
+		if !p.curTokenIs(lexer.TokenIdent) {
+			p.addError(fmt.Sprintf("expected enumerator name, got %s", p.curToken.Type))
+			break
+		}
+
+		enumName := p.curToken.Literal
+		p.nextToken()
+
+		var value cabs.Expr
+		if p.curTokenIs(lexer.TokenAssign) {
+			p.nextToken() // consume '='
+			value = p.parseExprPrec(precAssign)
+		}
+
+		values = append(values, cabs.EnumVal{Name: enumName, Value: value})
+
+		if p.curTokenIs(lexer.TokenComma) {
+			p.nextToken()
+		} else {
+			break
+		}
+	}
+
+	if !p.curTokenIs(lexer.TokenRBrace) {
+		p.addError(fmt.Sprintf("expected '}' at end of enum, got %s", p.curToken.Type))
+		return nil
+	}
+	p.nextToken() // consume '}'
+
+	// Optional trailing semicolon
+	if p.curTokenIs(lexer.TokenSemicolon) {
+		p.nextToken()
+	}
+
+	return cabs.EnumDef{Name: name, Values: values}
+}
+
+// parseParameterList parses function parameters: (type name, type name, ...)
+func (p *Parser) parseParameterList() []cabs.Param {
+	var params []cabs.Param
+
+	// Empty parameter list or void
+	if p.curTokenIs(lexer.TokenRParen) {
+		return params
+	}
+	if p.curTokenIs(lexer.TokenVoid) && p.peekTokenIs(lexer.TokenRParen) {
+		p.nextToken() // consume 'void'
+		return params
+	}
+
+	// Parse first parameter
+	param := p.parseParameter()
+	if param != nil {
+		params = append(params, *param)
+	}
+
+	// Parse remaining parameters
+	for p.curTokenIs(lexer.TokenComma) {
+		p.nextToken() // consume ','
+		param := p.parseParameter()
+		if param != nil {
+			params = append(params, *param)
+		}
+	}
+
+	return params
+}
+
+// parseParameter parses a single function parameter: type name
+func (p *Parser) parseParameter() *cabs.Param {
+	// Skip type qualifiers
+	for p.isTypeQualifier() {
+		p.nextToken()
+	}
+
+	if !p.isTypeSpecifier() {
+		p.addError(fmt.Sprintf("expected type specifier in parameter, got %s", p.curToken.Type))
+		return nil
+	}
+
+	typeSpec := p.curToken.Literal
+	p.nextToken()
+
+	// Handle pointer types
+	for p.curTokenIs(lexer.TokenStar) {
+		typeSpec = typeSpec + "*"
+		p.nextToken()
+	}
+
+	// Parameter name is optional in declarations, but we require it for now
+	name := ""
+	if p.curTokenIs(lexer.TokenIdent) {
+		name = p.curToken.Literal
+		p.nextToken()
+	}
+
+	// Handle array parameters like int arr[]
+	for p.curTokenIs(lexer.TokenLBracket) {
+		p.nextToken() // consume '['
+		// Skip array size if present
+		for !p.curTokenIs(lexer.TokenRBracket) && !p.curTokenIs(lexer.TokenEOF) {
+			p.nextToken()
+		}
+		if p.curTokenIs(lexer.TokenRBracket) {
+			p.nextToken() // consume ']'
+		}
+		typeSpec = typeSpec + "[]"
+	}
+
+	return &cabs.Param{TypeSpec: typeSpec, Name: name}
+}
+
+// parseTypedef parses a typedef declaration
+func (p *Parser) parseTypedef() cabs.Definition {
+	p.nextToken() // consume 'typedef'
+
+	if !p.isTypeSpecifier() {
+		p.addError(fmt.Sprintf("expected type specifier in typedef, got %s", p.curToken.Type))
+		return nil
+	}
+
+	typeSpec := p.curToken.Literal
+	p.nextToken()
+
+	// Handle pointer types
+	for p.curTokenIs(lexer.TokenStar) {
+		typeSpec = typeSpec + "*"
+		p.nextToken()
+	}
+
+	if !p.curTokenIs(lexer.TokenIdent) {
+		p.addError(fmt.Sprintf("expected typedef name, got %s", p.curToken.Type))
+		return nil
+	}
+
+	name := p.curToken.Literal
+	p.nextToken()
+
+	if !p.expect(lexer.TokenSemicolon) {
+		return nil
+	}
+
+	// Register the typedef name
+	p.typedefs[name] = true
+
+	return cabs.TypedefDef{TypeSpec: typeSpec, Name: name}
+}
+
 func (p *Parser) isTypeSpecifier() bool {
 	switch p.curToken.Type {
-	case lexer.TokenInt_, lexer.TokenVoid:
+	case lexer.TokenInt_, lexer.TokenVoid, lexer.TokenChar, lexer.TokenShort,
+		lexer.TokenLong, lexer.TokenFloat, lexer.TokenDouble,
+		lexer.TokenSigned, lexer.TokenUnsigned, lexer.TokenStruct,
+		lexer.TokenUnion, lexer.TokenEnum:
 		return true
 	case lexer.TokenIdent:
 		// Check if it's a typedef name
 		return p.typedefs[p.curToken.Literal]
 	}
 	return false
+}
+
+func (p *Parser) isStorageClassSpecifier() bool {
+	switch p.curToken.Type {
+	case lexer.TokenStatic, lexer.TokenExtern, lexer.TokenAuto, lexer.TokenRegister:
+		return true
+	}
+	return false
+}
+
+func (p *Parser) isTypeQualifier() bool {
+	switch p.curToken.Type {
+	case lexer.TokenConst, lexer.TokenVolatile, lexer.TokenRestrict:
+		return true
+	}
+	return false
+}
+
+// isDeclarationStart checks if current token starts a declaration
+func (p *Parser) isDeclarationStart() bool {
+	return p.isStorageClassSpecifier() || p.isTypeQualifier() || p.isTypeSpecifier()
 }
 
 func (p *Parser) parseBlock() *cabs.Block {
@@ -159,6 +505,11 @@ func (p *Parser) parseBlock() *cabs.Block {
 }
 
 func (p *Parser) parseStatement() cabs.Stmt {
+	// Check for declarations first (they can start with storage class, type qualifier, or type specifier)
+	if p.isStorageClassSpecifier() || p.isTypeQualifier() || p.isTypeSpecifierKeyword() {
+		return p.parseDeclarationStatement()
+	}
+
 	switch p.curToken.Type {
 	case lexer.TokenReturn:
 		return p.parseReturnStatement()
@@ -185,12 +536,110 @@ func (p *Parser) parseStatement() cabs.Stmt {
 		if p.peekTokenIs(lexer.TokenColon) {
 			return p.parseLabelStatement()
 		}
+		// Check if it's a typedef name (declaration)
+		if p.typedefs[p.curToken.Literal] {
+			return p.parseDeclarationStatement()
+		}
 		// Expression statement
 		return p.parseExpressionStatement()
 	default:
 		// Expression statement: expr;
 		return p.parseExpressionStatement()
 	}
+}
+
+// isTypeSpecifierKeyword checks if current token is a type specifier keyword (not typedef name)
+func (p *Parser) isTypeSpecifierKeyword() bool {
+	switch p.curToken.Type {
+	case lexer.TokenInt_, lexer.TokenVoid, lexer.TokenChar, lexer.TokenShort,
+		lexer.TokenLong, lexer.TokenFloat, lexer.TokenDouble,
+		lexer.TokenSigned, lexer.TokenUnsigned, lexer.TokenStruct,
+		lexer.TokenUnion, lexer.TokenEnum:
+		return true
+	}
+	return false
+}
+
+// parseDeclarationStatement parses a variable declaration: type name [= initializer], ...;
+func (p *Parser) parseDeclarationStatement() cabs.Stmt {
+	// Collect storage class specifiers (skip for now, just consume)
+	for p.isStorageClassSpecifier() {
+		p.nextToken()
+	}
+
+	// Collect type qualifiers (skip for now, just consume)
+	for p.isTypeQualifier() {
+		p.nextToken()
+	}
+
+	// Parse base type
+	if !p.isTypeSpecifier() {
+		p.addError(fmt.Sprintf("expected type specifier, got %s", p.curToken.Type))
+		return nil
+	}
+
+	typeSpec := p.curToken.Literal
+	p.nextToken()
+
+	var decls []cabs.Decl
+
+	// Parse declarators
+	for {
+		// Skip pointer declarators for now (*)
+		for p.curTokenIs(lexer.TokenStar) {
+			typeSpec = typeSpec + "*"
+			p.nextToken()
+		}
+
+		// Expect identifier
+		if !p.curTokenIs(lexer.TokenIdent) {
+			p.addError(fmt.Sprintf("expected identifier in declaration, got %s", p.curToken.Type))
+			return nil
+		}
+		name := p.curToken.Literal
+		p.nextToken()
+
+		// Check for array declarator
+		for p.curTokenIs(lexer.TokenLBracket) {
+			p.nextToken() // consume '['
+			// For now, skip the array size expression
+			for !p.curTokenIs(lexer.TokenRBracket) && !p.curTokenIs(lexer.TokenEOF) {
+				p.nextToken()
+			}
+			if !p.expect(lexer.TokenRBracket) {
+				return nil
+			}
+			typeSpec = typeSpec + "[]"
+		}
+
+		var init cabs.Expr
+		// Check for initializer
+		if p.curTokenIs(lexer.TokenAssign) {
+			p.nextToken() // consume '='
+			init = p.parseExprPrec(precAssign) // Use assignment precedence to stop at comma
+			if init == nil {
+				return nil
+			}
+		}
+
+		decls = append(decls, cabs.Decl{
+			TypeSpec:    typeSpec,
+			Name:        name,
+			Initializer: init,
+		})
+
+		// Check for more declarators
+		if !p.curTokenIs(lexer.TokenComma) {
+			break
+		}
+		p.nextToken() // consume ','
+	}
+
+	if !p.expect(lexer.TokenSemicolon) {
+		return nil
+	}
+
+	return cabs.DeclStmt{Decls: decls}
 }
 
 func (p *Parser) parseExpressionStatement() cabs.Stmt {
@@ -632,7 +1081,10 @@ func (p *Parser) parseSizeof() cabs.Expr {
 // isTypeSpecifierPeek checks if the peek token is a type specifier (for sizeof disambiguation)
 func (p *Parser) isTypeSpecifierPeek() bool {
 	switch p.peekToken.Type {
-	case lexer.TokenInt_, lexer.TokenVoid:
+	case lexer.TokenInt_, lexer.TokenVoid, lexer.TokenChar, lexer.TokenShort,
+		lexer.TokenLong, lexer.TokenFloat, lexer.TokenDouble,
+		lexer.TokenSigned, lexer.TokenUnsigned, lexer.TokenStruct,
+		lexer.TokenUnion, lexer.TokenEnum:
 		return true
 	case lexer.TokenIdent:
 		return p.typedefs[p.peekToken.Literal]

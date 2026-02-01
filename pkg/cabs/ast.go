@@ -236,7 +236,83 @@ type Block struct {
 type FunDef struct {
 	ReturnType string
 	Name       string
+	Params     []Param
 	Body       *Block
+}
+
+// Param represents a function parameter
+type Param struct {
+	TypeSpec string
+	Name     string
+}
+
+// Decl represents a variable declaration (with optional initializer)
+type Decl struct {
+	TypeSpec    string
+	Name        string
+	Initializer Expr // nil if no initializer
+}
+
+// DeclStmt represents a declaration statement (can have multiple declarators)
+type DeclStmt struct {
+	Decls []Decl
+}
+
+// StorageClass represents storage class specifiers
+type StorageClass int
+
+const (
+	StorageNone StorageClass = iota
+	StorageStatic
+	StorageExtern
+	StorageAuto
+	StorageRegister
+)
+
+// TypeQualifier represents type qualifiers
+type TypeQualifier int
+
+const (
+	QualNone TypeQualifier = iota
+	QualConst
+	QualVolatile
+	QualRestrict
+)
+
+// TypedefDef represents a typedef declaration
+type TypedefDef struct {
+	TypeSpec string
+	Name     string
+}
+
+// StructField represents a field in a struct definition
+type StructField struct {
+	TypeSpec string
+	Name     string
+}
+
+// StructDef represents a struct type definition
+type StructDef struct {
+	Name   string // empty for anonymous structs
+	Fields []StructField
+}
+
+// UnionDef represents a union type definition
+type UnionDef struct {
+	Name   string
+	Fields []StructField
+}
+
+// EnumVal represents a single enumerator
+type EnumVal struct {
+	Name  string
+	Value Expr // nil for auto-assigned values
+}
+
+// EnumDef represents an enum type definition
+type EnumDef struct {
+	Name   string
+	Values []EnumVal
 }
 
 // Marker methods for interface implementation
@@ -314,3 +390,18 @@ func (Block) implCabsStmt() {}
 
 func (FunDef) implCabsNode()    {}
 func (FunDef) implDefinition() {}
+
+func (DeclStmt) implCabsNode() {}
+func (DeclStmt) implCabsStmt() {}
+
+func (TypedefDef) implCabsNode()    {}
+func (TypedefDef) implDefinition() {}
+
+func (StructDef) implCabsNode()    {}
+func (StructDef) implDefinition() {}
+
+func (UnionDef) implCabsNode()    {}
+func (UnionDef) implDefinition() {}
+
+func (EnumDef) implCabsNode()    {}
+func (EnumDef) implDefinition() {}

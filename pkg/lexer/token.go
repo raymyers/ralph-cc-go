@@ -31,6 +31,22 @@ const (
 	TokenTypedef  // typedef
 	TokenStruct   // struct
 	TokenSizeof   // sizeof
+	TokenUnion    // union
+	TokenEnum     // enum
+	TokenStatic   // static
+	TokenExtern   // extern
+	TokenAuto     // auto
+	TokenRegister // register
+	TokenConst    // const
+	TokenVolatile // volatile
+	TokenRestrict // restrict
+	TokenChar     // char
+	TokenShort    // short
+	TokenLong     // long
+	TokenFloat    // float
+	TokenDouble   // double
+	TokenSigned   // signed
+	TokenUnsigned // unsigned
 
 	// Operators
 	TokenPlus      // +
@@ -109,6 +125,22 @@ var tokenNames = map[TokenType]string{
 	TokenTypedef:       "typedef",
 	TokenStruct:        "struct",
 	TokenSizeof:        "sizeof",
+	TokenUnion:         "union",
+	TokenEnum:          "enum",
+	TokenStatic:        "static",
+	TokenExtern:        "extern",
+	TokenAuto:          "auto",
+	TokenRegister:      "register",
+	TokenConst:         "const",
+	TokenVolatile:      "volatile",
+	TokenRestrict:      "restrict",
+	TokenChar:          "char",
+	TokenShort:         "short",
+	TokenLong:          "long",
+	TokenFloat:         "float",
+	TokenDouble:        "double",
+	TokenSigned:        "signed",
+	TokenUnsigned:      "unsigned",
 	TokenPlus:          "+",
 	TokenMinus:         "-",
 	TokenStar:          "*",
@@ -190,6 +222,22 @@ var keywords = map[string]TokenType{
 	"typedef":  TokenTypedef,
 	"struct":   TokenStruct,
 	"sizeof":   TokenSizeof,
+	"union":    TokenUnion,
+	"enum":     TokenEnum,
+	"static":   TokenStatic,
+	"extern":   TokenExtern,
+	"auto":     TokenAuto,
+	"register": TokenRegister,
+	"const":    TokenConst,
+	"volatile": TokenVolatile,
+	"restrict": TokenRestrict,
+	"char":     TokenChar,
+	"short":    TokenShort,
+	"long":     TokenLong,
+	"float":    TokenFloat,
+	"double":   TokenDouble,
+	"signed":   TokenSigned,
+	"unsigned": TokenUnsigned,
 }
 
 // LookupIdent returns the token type for an identifier (keyword or IDENT)

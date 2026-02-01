@@ -7,6 +7,6 @@
 [x] Make task bullets in plan/01-cli-ralph/PLAN_PARSING.md to carry out the plan in docs/PARSING.md, wiring to cli's -dparse, driven by the yaml tests, to ultimately reach equivelence on all supported syntax (-dparse matches).
 [x] Get plan/01-cli-ralph/PLAN_PARSING.md to 25% tasks done
 [x] Get plan/01-cli-ralph/PLAN_PARSING.md to 50% tasks done
-[ ] Get plan/01-cli-ralph/PLAN_PARSING.md to 75% tasks done
+[x] Get plan/01-cli-ralph/PLAN_PARSING.md to 75% tasks done
 [ ] Get plan/01-cli-ralph/PLAN_PARSING.md to 100% tasks done
 [ ] Manually spot check our parser cli againse ccert (using container-use) and review tests for any gaps including checking for parser commit diffs that don't add test cases (adding task bullet to plan/01-cli-ralph/PLAN_TES.md if needed).

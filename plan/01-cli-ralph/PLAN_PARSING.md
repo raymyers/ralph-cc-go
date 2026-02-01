@@ -129,63 +129,63 @@ Detailed task list to implement the parsing plan from docs/PARSING.md. The goal 
 ## M4: Declarations
 
 ### M4.1: Variable Declarations
-- [ ] Add DecDef (declaration definition) AST node
-- [ ] Parse `int x;`, `int x, y;`
-- [ ] Parse with initializers: `int x = 1;`
-- [ ] Add tests for variable declarations
+- [x] Add DecDef (declaration definition) AST node
+- [x] Parse `int x;`, `int x, y;`
+- [x] Parse with initializers: `int x = 1;`
+- [x] Add tests for variable declarations
 
 ### M4.2: Function Parameters
-- [ ] Parse function parameters: `int f(int a, int b)`
-- [ ] Update FunDef AST to include parameter list
-- [ ] Add tests for functions with parameters
+- [x] Parse function parameters: `int f(int a, int b)`
+- [x] Update FunDef AST to include parameter list
+- [x] Add tests for functions with parameters
 
 ### M4.3: Typedef Tracking
-- [ ] Track typedef names in parser state
-- [ ] Parse `typedef int myint;`
-- [ ] Resolve ambiguity: `T * x;` as declaration vs multiplication
-- [ ] Add tests for typedef
+- [x] Track typedef names in parser state
+- [x] Parse `typedef int myint;`
+- [x] Resolve ambiguity: `T * x;` as declaration vs multiplication
+- [x] Add tests for typedef
 
 ### M4.4: Storage Class Specifiers
-- [ ] Parse `static`, `extern`, `auto`, `register` (add keywords)
-- [ ] Add to AST specifier list
-- [ ] Add tests
+- [x] Parse `static`, `extern`, `auto`, `register` (add keywords)
+- [x] Add to AST specifier list
+- [x] Add tests
 
 ### M4.5: Type Qualifiers
-- [ ] Parse `const`, `volatile`, `restrict` (add keywords)
-- [ ] Add to AST
-- [ ] Add tests
+- [x] Parse `const`, `volatile`, `restrict` (add keywords)
+- [x] Add to AST
+- [x] Add tests
 
 ---
 
 ## M5: Types
 
 ### M5.1: Pointer Types
-- [ ] Parse pointer declarators: `int *p;`
-- [ ] Multiple indirection: `int **pp;`
+- [x] Parse pointer declarators: `int *p;`
+- [x] Multiple indirection: `int **pp;`
 - [ ] Pointer to function syntax
-- [ ] Add tests
+- [x] Add tests
 
 ### M5.2: Array Types
-- [ ] Parse array declarators: `int a[10];`
+- [x] Parse array declarators: `int a[10];`
 - [ ] Multi-dimensional: `int a[2][3];`
 - [ ] Variable-length arrays (VLA)
-- [ ] Add tests
+- [x] Add tests
 
 ### M5.3: Struct Types
-- [ ] Parse `struct name { members };`
-- [ ] Anonymous structs
-- [ ] Add Struct AST node
-- [ ] Add tests
+- [x] Parse `struct name { members };`
+- [x] Anonymous structs
+- [x] Add Struct AST node
+- [x] Add tests
 
 ### M5.4: Union Types
-- [ ] Parse `union name { members };` (add keyword)
-- [ ] Add Union AST node
-- [ ] Add tests
+- [x] Parse `union name { members };` (add keyword)
+- [x] Add Union AST node
+- [x] Add tests
 
 ### M5.5: Enum Types
-- [ ] Parse `enum name { a, b = 1, c };` (add keyword)
-- [ ] Add Enum AST node
-- [ ] Add tests
+- [x] Parse `enum name { a, b = 1, c };` (add keyword)
+- [x] Add Enum AST node
+- [x] Add tests
 
 ### M5.6: Function Pointer Types
 - [ ] Parse `int (*fp)(int, int);`
