@@ -102,31 +102,33 @@ RTLgen transforms CminorSel to RTL by:
 
 **Notes:** Created RegAllocator with Fresh(), FreshN(), MapVar(), LookupVar(), SetVar(), MapParams(), MapVars(), AllocResultReg(), GetResultReg(), NextRegID(), and Clone(). 13 test cases verify all register allocation functionality.
 
-## Milestone 4: Instruction Generation
+## Milestone 4: Instruction Generation ✅
 
 **Goal:** Generate RTL instructions from CminorSel operations
 
 ### Tasks
 
-- [ ] Create `pkg/rtlgen/instr.go`
-- [ ] Generate `Iop` for expressions:
-  - [ ] Binary ops: `rd = op(rs1, rs2)`
-  - [ ] Unary ops: `rd = op(rs)`
-  - [ ] Constants: `rd = const`
-- [ ] Generate `Iload` for memory access:
-  - [ ] Addressing mode → address operands
-  - [ ] Destination register
-- [ ] Generate `Istore` for memory writes:
-  - [ ] Source register
-  - [ ] Addressing mode → address operands
-- [ ] Generate `Icall` for function calls:
-  - [ ] Arguments in registers
-  - [ ] Result register
-  - [ ] Successor node
-- [ ] Generate `Icond` for conditionals:
-  - [ ] Condition operands
-  - [ ] True/false successors
-- [ ] Add tests for instruction generation
+- [x] Create `pkg/rtlgen/instr.go`
+- [x] Generate `Iop` for expressions:
+  - [x] Binary ops: `rd = op(rs1, rs2)`
+  - [x] Unary ops: `rd = op(rs)`
+  - [x] Constants: `rd = const`
+- [x] Generate `Iload` for memory access:
+  - [x] Addressing mode → address operands
+  - [x] Destination register
+- [x] Generate `Istore` for memory writes:
+  - [x] Source register
+  - [x] Addressing mode → address operands
+- [x] Generate `Icall` for function calls:
+  - [x] Arguments in registers
+  - [x] Result register
+  - [x] Successor node
+- [x] Generate `Icond` for conditionals:
+  - [x] Condition operands
+  - [x] True/false successors
+- [x] Add tests for instruction generation
+
+**Notes:** Created InstrBuilder integrating CFGBuilder and RegAllocator. TranslateUnaryOp, TranslateBinaryOp, TranslateConstant, TranslateAddressingMode convert CminorSel to RTL types. Emit methods for all instruction types (Op, Move, Const, Load, Store, Call, Tailcall, Cond, Jumptable, Return, Nop). 16 test functions verify translation and emission.
 
 ## Milestone 5: Expression Translation
 
