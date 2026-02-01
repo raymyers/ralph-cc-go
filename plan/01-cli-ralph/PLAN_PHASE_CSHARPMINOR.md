@@ -79,17 +79,17 @@ Cshmgen transforms Clight to Csharpminor by:
 
 ### Tasks
 
-- [ ] Create `pkg/cshmgen/expr.go`
-- [ ] Translate simple expressions (variables, constants)
-- [ ] Translate unary expressions with type lookup
-- [ ] Translate binary expressions with type lookup
-- [ ] Translate memory access:
-  - [ ] Dereference → `Eload` with appropriate chunk
-  - [ ] Array subscript → address computation + `Eload`
-  - [ ] Struct field → offset computation + `Eload`
-- [ ] Translate sizeof/alignof to constants
-- [ ] Handle address-of expressions
-- [ ] Add tests for expression translation
+- [x] Create `pkg/cshmgen/expr.go`
+- [x] Translate simple expressions (variables, constants)
+- [x] Translate unary expressions with type lookup
+- [x] Translate binary expressions with type lookup
+- [x] Translate memory access:
+  - [x] Dereference → `Eload` with appropriate chunk
+  - [x] Array subscript → address computation + `Eload` (handled via Ederef, as Clight desugars a[i] to *(a+i))
+  - [x] Struct field → offset computation + `Eload`
+- [x] Translate sizeof/alignof to constants
+- [x] Handle address-of expressions
+- [x] Add tests for expression translation
 
 ## Milestone 4: Statement Translation
 
