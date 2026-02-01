@@ -44,6 +44,14 @@ func (l *Lexer) peekChar() byte {
 	return l.input[l.readPos]
 }
 
+func (l *Lexer) peekCharN(n int) byte {
+	pos := l.readPos + n - 1
+	if pos >= len(l.input) {
+		return 0
+	}
+	return l.input[pos]
+}
+
 // NextToken returns the next token from the input
 func (l *Lexer) NextToken() Token {
 	l.skipWhitespace()
@@ -57,21 +65,57 @@ func (l *Lexer) NextToken() Token {
 		tok.Type = TokenEOF
 		tok.Literal = ""
 	case '+':
-		tok = l.newToken(TokenPlus, l.ch)
+		if l.peekChar() == '=' {
+			tok.Type = TokenPlusAssign
+			tok.Literal = "+="
+			l.readChar()
+		} else if l.peekChar() == '+' {
+			tok.Type = TokenIncrement
+			tok.Literal = "++"
+			l.readChar()
+		} else {
+			tok = l.newToken(TokenPlus, l.ch)
+		}
 	case '-':
 		if l.peekChar() == '>' {
 			tok.Type = TokenArrow
 			tok.Literal = "->"
 			l.readChar()
+		} else if l.peekChar() == '=' {
+			tok.Type = TokenMinusAssign
+			tok.Literal = "-="
+			l.readChar()
+		} else if l.peekChar() == '-' {
+			tok.Type = TokenDecrement
+			tok.Literal = "--"
+			l.readChar()
 		} else {
 			tok = l.newToken(TokenMinus, l.ch)
 		}
 	case '*':
-		tok = l.newToken(TokenStar, l.ch)
+		if l.peekChar() == '=' {
+			tok.Type = TokenStarAssign
+			tok.Literal = "*="
+			l.readChar()
+		} else {
+			tok = l.newToken(TokenStar, l.ch)
+		}
 	case '/':
-		tok = l.newToken(TokenSlash, l.ch)
+		if l.peekChar() == '=' {
+			tok.Type = TokenSlashAssign
+			tok.Literal = "/="
+			l.readChar()
+		} else {
+			tok = l.newToken(TokenSlash, l.ch)
+		}
 	case '%':
-		tok = l.newToken(TokenPercent, l.ch)
+		if l.peekChar() == '=' {
+			tok.Type = TokenPercentAssign
+			tok.Literal = "%="
+			l.readChar()
+		} else {
+			tok = l.newToken(TokenPercent, l.ch)
+		}
 	case '=':
 		if l.peekChar() == '=' {
 			tok.Type = TokenEq
@@ -89,25 +133,35 @@ func (l *Lexer) NextToken() Token {
 			tok = l.newToken(TokenNot, l.ch)
 		}
 	case '<':
-		if l.peekChar() == '=' {
-			tok.Type = TokenLe
-			tok.Literal = "<="
+		if l.peekChar() == '<' && l.peekCharN(2) == '=' {
+			tok.Type = TokenShlAssign
+			tok.Literal = "<<="
+			l.readChar()
 			l.readChar()
 		} else if l.peekChar() == '<' {
 			tok.Type = TokenShl
 			tok.Literal = "<<"
 			l.readChar()
+		} else if l.peekChar() == '=' {
+			tok.Type = TokenLe
+			tok.Literal = "<="
+			l.readChar()
 		} else {
 			tok = l.newToken(TokenLt, l.ch)
 		}
 	case '>':
-		if l.peekChar() == '=' {
-			tok.Type = TokenGe
-			tok.Literal = ">="
+		if l.peekChar() == '>' && l.peekCharN(2) == '=' {
+			tok.Type = TokenShrAssign
+			tok.Literal = ">>="
+			l.readChar()
 			l.readChar()
 		} else if l.peekChar() == '>' {
 			tok.Type = TokenShr
 			tok.Literal = ">>"
+			l.readChar()
+		} else if l.peekChar() == '=' {
+			tok.Type = TokenGe
+			tok.Literal = ">="
 			l.readChar()
 		} else {
 			tok = l.newToken(TokenGt, l.ch)
@@ -121,6 +175,10 @@ func (l *Lexer) NextToken() Token {
 			tok.Type = TokenAnd
 			tok.Literal = "&&"
 			l.readChar()
+		} else if l.peekChar() == '=' {
+			tok.Type = TokenAndAssign
+			tok.Literal = "&="
+			l.readChar()
 		} else {
 			tok = l.newToken(TokenAmpersand, l.ch)
 		}
@@ -129,11 +187,21 @@ func (l *Lexer) NextToken() Token {
 			tok.Type = TokenOr
 			tok.Literal = "||"
 			l.readChar()
+		} else if l.peekChar() == '=' {
+			tok.Type = TokenOrAssign
+			tok.Literal = "|="
+			l.readChar()
 		} else {
 			tok = l.newToken(TokenPipe, l.ch)
 		}
 	case '^':
-		tok = l.newToken(TokenCaret, l.ch)
+		if l.peekChar() == '=' {
+			tok.Type = TokenXorAssign
+			tok.Literal = "^="
+			l.readChar()
+		} else {
+			tok = l.newToken(TokenCaret, l.ch)
+		}
 	case '~':
 		tok = l.newToken(TokenTilde, l.ch)
 	case '(':

@@ -47,10 +47,21 @@ const (
 	OpShl // <<
 	OpShr // >>
 	OpAssign
+	OpAddAssign // +=
+	OpSubAssign // -=
+	OpMulAssign // *=
+	OpDivAssign // /=
+	OpModAssign // %=
+	OpAndAssign // &=
+	OpOrAssign  // |=
+	OpXorAssign // ^=
+	OpShlAssign // <<=
+	OpShrAssign // >>=
+	OpComma     // ,
 )
 
 func (op BinaryOp) String() string {
-	names := []string{"+", "-", "*", "/", "%", "<", "<=", ">", ">=", "==", "!=", "&&", "||", "&", "|", "^", "<<", ">>", "="}
+	names := []string{"+", "-", "*", "/", "%", "<", "<=", ">", ">=", "==", "!=", "&&", "||", "&", "|", "^", "<<", ">>", "=", "+=", "-=", "*=", "/=", "%=", "&=", "|=", "^=", "<<=", ">>=", ","}
 	if int(op) < len(names) {
 		return names[op]
 	}
@@ -61,13 +72,19 @@ func (op BinaryOp) String() string {
 type UnaryOp int
 
 const (
-	OpNeg    UnaryOp = iota // -
-	OpNot                   // !
-	OpBitNot                // ~
+	OpNeg      UnaryOp = iota // -
+	OpNot                     // !
+	OpBitNot                  // ~
+	OpPreInc                  // ++x
+	OpPreDec                  // --x
+	OpPostInc                 // x++
+	OpPostDec                 // x--
+	OpAddrOf                  // &x
+	OpDeref                   // *x
 )
 
 func (op UnaryOp) String() string {
-	names := []string{"-", "!", "~"}
+	names := []string{"-", "!", "~", "++", "--", "++", "--", "&", "*"}
 	if int(op) < len(names) {
 		return names[op]
 	}
@@ -121,6 +138,13 @@ type Index struct {
 	Index Expr
 }
 
+// Member represents member access: s.x or p->y
+type Member struct {
+	Expr   Expr
+	Name   string
+	IsArrow bool // true for ->, false for .
+}
+
 // Return represents a return statement
 type Return struct {
 	Expr Expr // nil for bare return
@@ -162,6 +186,9 @@ func (Call) implCabsExpr() {}
 
 func (Index) implCabsNode() {}
 func (Index) implCabsExpr() {}
+
+func (Member) implCabsNode() {}
+func (Member) implCabsExpr() {}
 
 func (Return) implCabsNode() {}
 func (Return) implCabsStmt() {}

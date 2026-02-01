@@ -664,6 +664,229 @@ func TestArraySubscript(t *testing.T) {
 	}
 }
 
+func TestCompoundAssignment(t *testing.T) {
+	tests := []struct {
+		input string
+		op    cabs.BinaryOp
+	}{
+		{"int f() { return x += 1; }", cabs.OpAddAssign},
+		{"int f() { return x -= 1; }", cabs.OpSubAssign},
+		{"int f() { return x *= 2; }", cabs.OpMulAssign},
+		{"int f() { return x /= 2; }", cabs.OpDivAssign},
+		{"int f() { return x %= 3; }", cabs.OpModAssign},
+		{"int f() { return x &= 1; }", cabs.OpAndAssign},
+		{"int f() { return x |= 1; }", cabs.OpOrAssign},
+		{"int f() { return x ^= 1; }", cabs.OpXorAssign},
+		{"int f() { return x <<= 1; }", cabs.OpShlAssign},
+		{"int f() { return x >>= 1; }", cabs.OpShrAssign},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.input, func(t *testing.T) {
+			l := lexer.New(tt.input)
+			p := New(l)
+			def := p.ParseDefinition()
+
+			if len(p.Errors()) > 0 {
+				t.Fatalf("parser errors: %v", p.Errors())
+			}
+
+			funDef := def.(cabs.FunDef)
+			ret := funDef.Body.Items[0].(cabs.Return)
+			binary, ok := ret.Expr.(cabs.Binary)
+			if !ok {
+				t.Fatalf("expected Binary, got %T", ret.Expr)
+			}
+
+			if binary.Op != tt.op {
+				t.Errorf("wrong op: expected %v, got %v", tt.op, binary.Op)
+			}
+
+			left := binary.Left.(cabs.Variable)
+			if left.Name != "x" {
+				t.Errorf("expected left to be variable 'x', got %q", left.Name)
+			}
+		})
+	}
+}
+
+func TestPrefixIncDec(t *testing.T) {
+	tests := []struct {
+		input string
+		op    cabs.UnaryOp
+	}{
+		{"int f() { return ++x; }", cabs.OpPreInc},
+		{"int f() { return --x; }", cabs.OpPreDec},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.input, func(t *testing.T) {
+			l := lexer.New(tt.input)
+			p := New(l)
+			def := p.ParseDefinition()
+
+			if len(p.Errors()) > 0 {
+				t.Fatalf("parser errors: %v", p.Errors())
+			}
+
+			funDef := def.(cabs.FunDef)
+			ret := funDef.Body.Items[0].(cabs.Return)
+			unary, ok := ret.Expr.(cabs.Unary)
+			if !ok {
+				t.Fatalf("expected Unary, got %T", ret.Expr)
+			}
+
+			if unary.Op != tt.op {
+				t.Errorf("wrong op: expected %v, got %v", tt.op, unary.Op)
+			}
+
+			inner := unary.Expr.(cabs.Variable)
+			if inner.Name != "x" {
+				t.Errorf("expected inner to be variable 'x', got %q", inner.Name)
+			}
+		})
+	}
+}
+
+func TestPostfixIncDec(t *testing.T) {
+	tests := []struct {
+		input string
+		op    cabs.UnaryOp
+	}{
+		{"int f() { return x++; }", cabs.OpPostInc},
+		{"int f() { return x--; }", cabs.OpPostDec},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.input, func(t *testing.T) {
+			l := lexer.New(tt.input)
+			p := New(l)
+			def := p.ParseDefinition()
+
+			if len(p.Errors()) > 0 {
+				t.Fatalf("parser errors: %v", p.Errors())
+			}
+
+			funDef := def.(cabs.FunDef)
+			ret := funDef.Body.Items[0].(cabs.Return)
+			unary, ok := ret.Expr.(cabs.Unary)
+			if !ok {
+				t.Fatalf("expected Unary, got %T", ret.Expr)
+			}
+
+			if unary.Op != tt.op {
+				t.Errorf("wrong op: expected %v, got %v", tt.op, unary.Op)
+			}
+
+			inner := unary.Expr.(cabs.Variable)
+			if inner.Name != "x" {
+				t.Errorf("expected inner to be variable 'x', got %q", inner.Name)
+			}
+		})
+	}
+}
+
+func TestMemberAccess(t *testing.T) {
+	tests := []struct {
+		name       string
+		input      string
+		structName string
+		memberName string
+		isArrow    bool
+	}{
+		{"dot", "int f() { return s.x; }", "s", "x", false},
+		{"arrow", "int f() { return p->y; }", "p", "y", true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			l := lexer.New(tt.input)
+			p := New(l)
+			def := p.ParseDefinition()
+
+			if len(p.Errors()) > 0 {
+				t.Fatalf("parser errors: %v", p.Errors())
+			}
+
+			funDef := def.(cabs.FunDef)
+			ret := funDef.Body.Items[0].(cabs.Return)
+			member, ok := ret.Expr.(cabs.Member)
+			if !ok {
+				t.Fatalf("expected Member, got %T", ret.Expr)
+			}
+
+			varExpr := member.Expr.(cabs.Variable)
+			if varExpr.Name != tt.structName {
+				t.Errorf("expected struct name %q, got %q", tt.structName, varExpr.Name)
+			}
+
+			if member.Name != tt.memberName {
+				t.Errorf("expected member name %q, got %q", tt.memberName, member.Name)
+			}
+
+			if member.IsArrow != tt.isArrow {
+				t.Errorf("expected isArrow=%v, got %v", tt.isArrow, member.IsArrow)
+			}
+		})
+	}
+}
+
+func TestAddressAndDereference(t *testing.T) {
+	tests := []struct {
+		input string
+		op    cabs.UnaryOp
+	}{
+		{"int f() { return &x; }", cabs.OpAddrOf},
+		{"int f() { return *p; }", cabs.OpDeref},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.input, func(t *testing.T) {
+			l := lexer.New(tt.input)
+			p := New(l)
+			def := p.ParseDefinition()
+
+			if len(p.Errors()) > 0 {
+				t.Fatalf("parser errors: %v", p.Errors())
+			}
+
+			funDef := def.(cabs.FunDef)
+			ret := funDef.Body.Items[0].(cabs.Return)
+			unary, ok := ret.Expr.(cabs.Unary)
+			if !ok {
+				t.Fatalf("expected Unary, got %T", ret.Expr)
+			}
+
+			if unary.Op != tt.op {
+				t.Errorf("wrong op: expected %v, got %v", tt.op, unary.Op)
+			}
+		})
+	}
+}
+
+func TestCommaOperator(t *testing.T) {
+	input := `int f() { return 1, 2; }`
+
+	l := lexer.New(input)
+	p := New(l)
+	def := p.ParseDefinition()
+
+	if len(p.Errors()) > 0 {
+		t.Fatalf("parser errors: %v", p.Errors())
+	}
+
+	funDef := def.(cabs.FunDef)
+	ret := funDef.Body.Items[0].(cabs.Return)
+	binary, ok := ret.Expr.(cabs.Binary)
+	if !ok {
+		t.Fatalf("expected Binary, got %T", ret.Expr)
+	}
+
+	if binary.Op != cabs.OpComma {
+		t.Errorf("wrong op: expected OpComma, got %v", binary.Op)
+	}
+}
+
 // exprString returns a string representation of an expression for testing
 func exprString(e cabs.Expr) string {
 	switch expr := e.(type) {

@@ -49,6 +49,22 @@ const (
 	TokenQuestion  // ?
 	TokenColon     // :
 
+	// Compound assignment operators
+	TokenPlusAssign    // +=
+	TokenMinusAssign   // -=
+	TokenStarAssign    // *=
+	TokenSlashAssign   // /=
+	TokenPercentAssign // %=
+	TokenAndAssign     // &=
+	TokenOrAssign      // |=
+	TokenXorAssign     // ^=
+	TokenShlAssign     // <<=
+	TokenShrAssign     // >>=
+
+	// Increment/decrement
+	TokenIncrement // ++
+	TokenDecrement // --
+
 	// Delimiters
 	TokenLParen    // (
 	TokenRParen    // )
@@ -63,53 +79,65 @@ const (
 )
 
 var tokenNames = map[TokenType]string{
-	TokenEOF:       "EOF",
-	TokenIllegal:   "ILLEGAL",
-	TokenIdent:     "IDENT",
-	TokenInt:       "INT",
-	TokenString:    "STRING",
-	TokenInt_:      "int",
-	TokenVoid:      "void",
-	TokenReturn:    "return",
-	TokenIf:        "if",
-	TokenElse:      "else",
-	TokenWhile:     "while",
-	TokenFor:       "for",
-	TokenTypedef:   "typedef",
-	TokenStruct:    "struct",
-	TokenPlus:      "+",
-	TokenMinus:     "-",
-	TokenStar:      "*",
-	TokenSlash:     "/",
-	TokenPercent:   "%",
-	TokenAssign:    "=",
-	TokenEq:        "==",
-	TokenNe:        "!=",
-	TokenLt:        "<",
-	TokenLe:        "<=",
-	TokenGt:        ">",
-	TokenGe:        ">=",
-	TokenAnd:       "&&",
-	TokenOr:        "||",
-	TokenNot:       "!",
-	TokenAmpersand: "&",
-	TokenPipe:      "|",
-	TokenCaret:     "^",
-	TokenTilde:     "~",
-	TokenShl:       "<<",
-	TokenShr:       ">>",
-	TokenQuestion:  "?",
-	TokenColon:     ":",
-	TokenLParen:    "(",
-	TokenRParen:    ")",
-	TokenLBrace:    "{",
-	TokenRBrace:    "}",
-	TokenLBracket:  "[",
-	TokenRBracket:  "]",
-	TokenSemicolon: ";",
-	TokenComma:     ",",
-	TokenDot:       ".",
-	TokenArrow:     "->",
+	TokenEOF:           "EOF",
+	TokenIllegal:       "ILLEGAL",
+	TokenIdent:         "IDENT",
+	TokenInt:           "INT",
+	TokenString:        "STRING",
+	TokenInt_:          "int",
+	TokenVoid:          "void",
+	TokenReturn:        "return",
+	TokenIf:            "if",
+	TokenElse:          "else",
+	TokenWhile:         "while",
+	TokenFor:           "for",
+	TokenTypedef:       "typedef",
+	TokenStruct:        "struct",
+	TokenPlus:          "+",
+	TokenMinus:         "-",
+	TokenStar:          "*",
+	TokenSlash:         "/",
+	TokenPercent:       "%",
+	TokenAssign:        "=",
+	TokenEq:            "==",
+	TokenNe:            "!=",
+	TokenLt:            "<",
+	TokenLe:            "<=",
+	TokenGt:            ">",
+	TokenGe:            ">=",
+	TokenAnd:           "&&",
+	TokenOr:            "||",
+	TokenNot:           "!",
+	TokenAmpersand:     "&",
+	TokenPipe:          "|",
+	TokenCaret:         "^",
+	TokenTilde:         "~",
+	TokenShl:           "<<",
+	TokenShr:           ">>",
+	TokenQuestion:      "?",
+	TokenColon:         ":",
+	TokenPlusAssign:    "+=",
+	TokenMinusAssign:   "-=",
+	TokenStarAssign:    "*=",
+	TokenSlashAssign:   "/=",
+	TokenPercentAssign: "%=",
+	TokenAndAssign:     "&=",
+	TokenOrAssign:      "|=",
+	TokenXorAssign:     "^=",
+	TokenShlAssign:     "<<=",
+	TokenShrAssign:     ">>=",
+	TokenIncrement:     "++",
+	TokenDecrement:     "--",
+	TokenLParen:        "(",
+	TokenRParen:        ")",
+	TokenLBrace:        "{",
+	TokenRBrace:        "}",
+	TokenLBracket:      "[",
+	TokenRBracket:      "]",
+	TokenSemicolon:     ";",
+	TokenComma:         ",",
+	TokenDot:           ".",
+	TokenArrow:         "->",
 }
 
 func (t TokenType) String() string {

@@ -11,20 +11,21 @@ import (
 // Precedence levels for Pratt parsing (lowest to highest)
 const (
 	precLowest     = 0
-	precAssign     = 1  // =
-	precTernary    = 2  // ?:
-	precOr         = 3  // ||
-	precAnd        = 4  // &&
-	precBitOr      = 5  // |
-	precBitXor     = 6  // ^
-	precBitAnd     = 7  // &
-	precEquality   = 8  // ==, !=
-	precRelational = 9  // <, <=, >, >=
-	precShift      = 10 // <<, >>
-	precAdditive   = 11 // +, -
-	precMulti      = 12 // *, /, %
-	precUnary      = 13 // -, !, ~
-	precPostfix    = 14 // function call, array subscript, member access
+	precComma      = 1  // ,
+	precAssign     = 2  // =, +=, -=, etc.
+	precTernary    = 3  // ?:
+	precOr         = 4  // ||
+	precAnd        = 5  // &&
+	precBitOr      = 6  // |
+	precBitXor     = 7  // ^
+	precBitAnd     = 8  // &
+	precEquality   = 9  // ==, !=
+	precRelational = 10 // <, <=, >, >=
+	precShift      = 11 // <<, >>
+	precAdditive   = 12 // +, -
+	precMulti      = 13 // *, /, %
+	precUnary      = 14 // -, !, ~, ++x, --x, &x, *x
+	precPostfix    = 15 // function call, array subscript, member access, x++, x--
 )
 
 // Parser parses C source code into a Cabs AST
@@ -223,6 +224,14 @@ func (p *Parser) parsePrefix() cabs.Expr {
 		return p.parsePrefixUnary(cabs.OpNot)
 	case lexer.TokenTilde:
 		return p.parsePrefixUnary(cabs.OpBitNot)
+	case lexer.TokenIncrement:
+		return p.parsePrefixUnary(cabs.OpPreInc)
+	case lexer.TokenDecrement:
+		return p.parsePrefixUnary(cabs.OpPreDec)
+	case lexer.TokenAmpersand:
+		return p.parsePrefixUnary(cabs.OpAddrOf)
+	case lexer.TokenStar:
+		return p.parsePrefixUnary(cabs.OpDeref)
 	default:
 		p.addError(fmt.Sprintf("expected expression, got %s", p.curToken.Type))
 		return nil
@@ -290,6 +299,21 @@ func (p *Parser) parseInfix(left cabs.Expr) cabs.Expr {
 		return p.parseIndex(left)
 	}
 
+	// Special case for member access
+	if p.curTokenIs(lexer.TokenDot) || p.curTokenIs(lexer.TokenArrow) {
+		return p.parseMember(left)
+	}
+
+	// Special case for postfix increment/decrement
+	if p.curTokenIs(lexer.TokenIncrement) {
+		p.nextToken()
+		return cabs.Unary{Op: cabs.OpPostInc, Expr: left}
+	}
+	if p.curTokenIs(lexer.TokenDecrement) {
+		p.nextToken()
+		return cabs.Unary{Op: cabs.OpPostDec, Expr: left}
+	}
+
 	op, ok := p.tokenToBinaryOp()
 	if !ok {
 		p.addError(fmt.Sprintf("unexpected infix operator: %s", p.curToken.Type))
@@ -299,8 +323,8 @@ func (p *Parser) parseInfix(left cabs.Expr) cabs.Expr {
 	prec := p.curPrecedence()
 	p.nextToken() // consume operator
 
-	// Right-associative for assignment
-	if op == cabs.OpAssign {
+	// Right-associative for all assignment operators
+	if isAssignOp(op) {
 		prec--
 	}
 
@@ -310,6 +334,32 @@ func (p *Parser) parseInfix(left cabs.Expr) cabs.Expr {
 	}
 
 	return cabs.Binary{Op: op, Left: left, Right: right}
+}
+
+// isAssignOp returns true if the operator is an assignment operator
+func isAssignOp(op cabs.BinaryOp) bool {
+	switch op {
+	case cabs.OpAssign, cabs.OpAddAssign, cabs.OpSubAssign, cabs.OpMulAssign,
+		cabs.OpDivAssign, cabs.OpModAssign, cabs.OpAndAssign, cabs.OpOrAssign,
+		cabs.OpXorAssign, cabs.OpShlAssign, cabs.OpShrAssign:
+		return true
+	}
+	return false
+}
+
+// parseMember parses member access: s.x or p->y
+func (p *Parser) parseMember(expr cabs.Expr) cabs.Expr {
+	isArrow := p.curTokenIs(lexer.TokenArrow)
+	p.nextToken() // consume '.' or '->'
+
+	if !p.curTokenIs(lexer.TokenIdent) {
+		p.addError(fmt.Sprintf("expected member name, got %s", p.curToken.Type))
+		return nil
+	}
+	name := p.curToken.Literal
+	p.nextToken() // consume member name
+
+	return cabs.Member{Expr: expr, Name: name, IsArrow: isArrow}
 }
 
 // parseTernary parses the ternary operator: cond ? then : else
@@ -430,6 +480,28 @@ func (p *Parser) tokenToBinaryOp() (cabs.BinaryOp, bool) {
 		return cabs.OpShr, true
 	case lexer.TokenAssign:
 		return cabs.OpAssign, true
+	case lexer.TokenPlusAssign:
+		return cabs.OpAddAssign, true
+	case lexer.TokenMinusAssign:
+		return cabs.OpSubAssign, true
+	case lexer.TokenStarAssign:
+		return cabs.OpMulAssign, true
+	case lexer.TokenSlashAssign:
+		return cabs.OpDivAssign, true
+	case lexer.TokenPercentAssign:
+		return cabs.OpModAssign, true
+	case lexer.TokenAndAssign:
+		return cabs.OpAndAssign, true
+	case lexer.TokenOrAssign:
+		return cabs.OpOrAssign, true
+	case lexer.TokenXorAssign:
+		return cabs.OpXorAssign, true
+	case lexer.TokenShlAssign:
+		return cabs.OpShlAssign, true
+	case lexer.TokenShrAssign:
+		return cabs.OpShrAssign, true
+	case lexer.TokenComma:
+		return cabs.OpComma, true
 	default:
 		return 0, false
 	}
@@ -438,7 +510,12 @@ func (p *Parser) tokenToBinaryOp() (cabs.BinaryOp, bool) {
 // precedences maps token types to their precedence levels
 func tokenPrecedence(t lexer.TokenType) int {
 	switch t {
-	case lexer.TokenAssign:
+	case lexer.TokenComma:
+		return precComma
+	case lexer.TokenAssign, lexer.TokenPlusAssign, lexer.TokenMinusAssign,
+		lexer.TokenStarAssign, lexer.TokenSlashAssign, lexer.TokenPercentAssign,
+		lexer.TokenAndAssign, lexer.TokenOrAssign, lexer.TokenXorAssign,
+		lexer.TokenShlAssign, lexer.TokenShrAssign:
 		return precAssign
 	case lexer.TokenQuestion:
 		return precTernary
@@ -462,7 +539,8 @@ func tokenPrecedence(t lexer.TokenType) int {
 		return precAdditive
 	case lexer.TokenStar, lexer.TokenSlash, lexer.TokenPercent:
 		return precMulti
-	case lexer.TokenLParen, lexer.TokenLBracket:
+	case lexer.TokenLParen, lexer.TokenLBracket, lexer.TokenDot, lexer.TokenArrow,
+		lexer.TokenIncrement, lexer.TokenDecrement:
 		return precPostfix
 	default:
 		return precLowest

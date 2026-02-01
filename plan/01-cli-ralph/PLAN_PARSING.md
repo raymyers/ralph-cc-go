@@ -46,14 +46,14 @@ Detailed task list to implement the parsing plan from docs/PARSING.md. The goal 
 
 ### M2.6: Assignment Operators
 - [x] Simple: `=`
-- [ ] Compound: `+=`, `-=`, `*=`, `/=`, `%=`, `&=`, `|=`, `^=`, `<<=`, `>>=` (add to lexer)
+- [x] Compound: `+=`, `-=`, `*=`, `/=`, `%=`, `&=`, `|=`, `^=`, `<<=`, `>>=` (add to lexer)
 - [x] Add tests for `x = 1`, `x += 2`
 
 ### M2.7: Other Expressions
-- [ ] Comma operator
+- [x] Comma operator
 - [x] Conditional (ternary): `?:`
-- [ ] Prefix increment/decrement: `++x`, `--x` (add to lexer)
-- [ ] Postfix increment/decrement: `x++`, `x--`
+- [x] Prefix increment/decrement: `++x`, `--x` (add to lexer)
+- [x] Postfix increment/decrement: `x++`, `x--`
 - [x] Add tests for ternary, increment/decrement
 
 ### M2.8: Function Calls
@@ -63,14 +63,14 @@ Detailed task list to implement the parsing plan from docs/PARSING.md. The goal 
 
 ### M2.9: Array/Member Access
 - [x] Add Index AST node (array subscript)
-- [ ] Add Member AST node (`.` and `->`)
+- [x] Add Member AST node (`.` and `->`)
 - [x] Parse `a[i]`, `s.x`, `p->y`
 - [x] Add tests for access expressions
 
 ### M2.10: Address/Dereference
-- [ ] Unary `&` (address-of)
-- [ ] Unary `*` (dereference)
-- [ ] Add tests for `&x`, `*p`
+- [x] Unary `&` (address-of)
+- [x] Unary `*` (dereference)
+- [x] Add tests for `&x`, `*p`
 
 ### M2.11: Sizeof
 - [ ] Parse `sizeof expr` and `sizeof(type)` (add to lexer)
