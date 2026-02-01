@@ -164,6 +164,10 @@ func (p *Parser) parseStatement() cabs.Stmt {
 		return p.parseReturnStatement()
 	case lexer.TokenIf:
 		return p.parseIfStatement()
+	case lexer.TokenWhile:
+		return p.parseWhileStatement()
+	case lexer.TokenDo:
+		return p.parseDoWhileStatement()
 	case lexer.TokenLBrace:
 		return p.parseBlock()
 	default:
@@ -213,6 +217,64 @@ func (p *Parser) parseIfStatement() cabs.Stmt {
 	}
 
 	return cabs.If{Cond: cond, Then: then, Else: els}
+}
+
+func (p *Parser) parseWhileStatement() cabs.Stmt {
+	p.nextToken() // consume 'while'
+
+	if !p.expect(lexer.TokenLParen) {
+		return nil
+	}
+
+	cond := p.parseExpression()
+	if cond == nil {
+		return nil
+	}
+
+	if !p.expect(lexer.TokenRParen) {
+		return nil
+	}
+
+	body := p.parseStatement()
+	if body == nil {
+		return nil
+	}
+
+	return cabs.While{Cond: cond, Body: body}
+}
+
+func (p *Parser) parseDoWhileStatement() cabs.Stmt {
+	p.nextToken() // consume 'do'
+
+	body := p.parseStatement()
+	if body == nil {
+		return nil
+	}
+
+	if !p.curTokenIs(lexer.TokenWhile) {
+		p.addError(fmt.Sprintf("expected 'while' after do body, got %s", p.curToken.Type))
+		return nil
+	}
+	p.nextToken() // consume 'while'
+
+	if !p.expect(lexer.TokenLParen) {
+		return nil
+	}
+
+	cond := p.parseExpression()
+	if cond == nil {
+		return nil
+	}
+
+	if !p.expect(lexer.TokenRParen) {
+		return nil
+	}
+
+	if !p.expect(lexer.TokenSemicolon) {
+		return nil
+	}
+
+	return cabs.DoWhile{Body: body, Cond: cond}
 }
 
 func (p *Parser) parseReturnStatement() cabs.Stmt {

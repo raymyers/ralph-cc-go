@@ -178,6 +178,18 @@ type If struct {
 	Else Stmt // nil if no else branch
 }
 
+// While represents a while loop
+type While struct {
+	Cond Expr
+	Body Stmt
+}
+
+// DoWhile represents a do-while loop
+type DoWhile struct {
+	Body Stmt
+	Cond Expr
+}
+
 // Block represents a compound statement (block)
 type Block struct {
 	Items []Stmt
@@ -235,6 +247,12 @@ func (Computation) implCabsStmt() {}
 
 func (If) implCabsNode() {}
 func (If) implCabsStmt() {}
+
+func (While) implCabsNode() {}
+func (While) implCabsStmt() {}
+
+func (DoWhile) implCabsNode() {}
+func (DoWhile) implCabsStmt() {}
 
 func (Block) implCabsNode() {}
 func (Block) implCabsStmt() {}

@@ -1063,6 +1063,70 @@ func TestIfStatement(t *testing.T) {
 	}
 }
 
+func TestWhileStatement(t *testing.T) {
+	tests := []struct {
+		name  string
+		input string
+	}{
+		{"simple while", "int f() { while (x) x = x - 1; }"},
+		{"while with block", "int f() { while (x > 0) { x = x - 1; } }"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			l := lexer.New(tt.input)
+			p := New(l)
+			def := p.ParseDefinition()
+
+			if len(p.Errors()) > 0 {
+				t.Fatalf("parser errors: %v", p.Errors())
+			}
+
+			funDef := def.(cabs.FunDef)
+			if len(funDef.Body.Items) != 1 {
+				t.Fatalf("expected 1 statement, got %d", len(funDef.Body.Items))
+			}
+
+			_, ok := funDef.Body.Items[0].(cabs.While)
+			if !ok {
+				t.Fatalf("expected While, got %T", funDef.Body.Items[0])
+			}
+		})
+	}
+}
+
+func TestDoWhileStatement(t *testing.T) {
+	tests := []struct {
+		name  string
+		input string
+	}{
+		{"simple do-while", "int f() { do x = x - 1; while (x); }"},
+		{"do-while with block", "int f() { do { x = x - 1; } while (x > 0); }"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			l := lexer.New(tt.input)
+			p := New(l)
+			def := p.ParseDefinition()
+
+			if len(p.Errors()) > 0 {
+				t.Fatalf("parser errors: %v", p.Errors())
+			}
+
+			funDef := def.(cabs.FunDef)
+			if len(funDef.Body.Items) != 1 {
+				t.Fatalf("expected 1 statement, got %d", len(funDef.Body.Items))
+			}
+
+			_, ok := funDef.Body.Items[0].(cabs.DoWhile)
+			if !ok {
+				t.Fatalf("expected DoWhile, got %T", funDef.Body.Items[0])
+			}
+		})
+	}
+}
+
 func TestDanglingElse(t *testing.T) {
 	// The dangling else should bind to the nearest if
 	input := `int f() { if (a) if (b) return 1; else return 2; }`

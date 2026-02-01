@@ -98,10 +98,10 @@ Detailed task list to implement the parsing plan from docs/PARSING.md. The goal 
 - [x] Add tests including dangling else
 
 ### M3.3: While/Do-While Loops
-- [ ] Add While, DoWhile AST nodes
-- [ ] Parse `while (cond) stmt`
-- [ ] Parse `do stmt while (cond);` (add `do` to lexer)
-- [ ] Add tests for loops
+- [x] Add While, DoWhile AST nodes
+- [x] Parse `while (cond) stmt`
+- [x] Parse `do stmt while (cond);` (add `do` to lexer)
+- [x] Add tests for loops
 
 ### M3.4: For Loops
 - [ ] Add For AST node

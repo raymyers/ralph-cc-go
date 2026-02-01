@@ -20,6 +20,7 @@ const (
 	TokenIf      // if
 	TokenElse    // else
 	TokenWhile   // while
+	TokenDo      // do
 	TokenFor     // for
 	TokenTypedef // typedef
 	TokenStruct  // struct
@@ -91,6 +92,7 @@ var tokenNames = map[TokenType]string{
 	TokenIf:            "if",
 	TokenElse:          "else",
 	TokenWhile:         "while",
+	TokenDo:            "do",
 	TokenFor:           "for",
 	TokenTypedef:       "typedef",
 	TokenStruct:        "struct",
@@ -165,6 +167,7 @@ var keywords = map[string]TokenType{
 	"if":      TokenIf,
 	"else":    TokenElse,
 	"while":   TokenWhile,
+	"do":      TokenDo,
 	"for":     TokenFor,
 	"typedef": TokenTypedef,
 	"struct":  TokenStruct,
