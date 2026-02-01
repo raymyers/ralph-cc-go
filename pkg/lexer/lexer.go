@@ -93,6 +93,10 @@ func (l *Lexer) NextToken() Token {
 			tok.Type = TokenLe
 			tok.Literal = "<="
 			l.readChar()
+		} else if l.peekChar() == '<' {
+			tok.Type = TokenShl
+			tok.Literal = "<<"
+			l.readChar()
 		} else {
 			tok = l.newToken(TokenLt, l.ch)
 		}
@@ -101,9 +105,17 @@ func (l *Lexer) NextToken() Token {
 			tok.Type = TokenGe
 			tok.Literal = ">="
 			l.readChar()
+		} else if l.peekChar() == '>' {
+			tok.Type = TokenShr
+			tok.Literal = ">>"
+			l.readChar()
 		} else {
 			tok = l.newToken(TokenGt, l.ch)
 		}
+	case '?':
+		tok = l.newToken(TokenQuestion, l.ch)
+	case ':':
+		tok = l.newToken(TokenColon, l.ch)
 	case '&':
 		if l.peekChar() == '&' {
 			tok.Type = TokenAnd

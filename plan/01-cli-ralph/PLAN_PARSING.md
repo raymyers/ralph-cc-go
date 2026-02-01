@@ -19,53 +19,53 @@ Detailed task list to implement the parsing plan from docs/PARSING.md. The goal 
 ## M2: Expressions
 
 ### M2.1: Pratt Parser Infrastructure
-- [ ] Add precedence constants for all C operators
-- [ ] Implement Pratt parser skeleton with `parseExpr(precedence int)`
-- [ ] Add prefix/infix parsing function maps
+- [x] Add precedence constants for all C operators
+- [x] Implement Pratt parser skeleton with `parseExpr(precedence int)`
+- [x] Add prefix/infix parsing function maps
 
 ### M2.2: Literals and Primary Expressions
-- [ ] Parse identifier expressions (Variable node)
-- [ ] Parse parenthesized expressions
-- [ ] Add tests for `(42)`, `x`, `(x)`
+- [x] Parse identifier expressions (Variable node)
+- [x] Parse parenthesized expressions
+- [x] Add tests for `(42)`, `x`, `(x)`
 
 ### M2.3: Arithmetic Operators
-- [ ] Binary: `+`, `-`, `*`, `/`, `%`
-- [ ] Unary prefix: `-` (negation)
-- [ ] Add tests for `1+2`, `3*4+5`, `-x`
+- [x] Binary: `+`, `-`, `*`, `/`, `%`
+- [x] Unary prefix: `-` (negation)
+- [x] Add tests for `1+2`, `3*4+5`, `-x`
 
 ### M2.4: Comparison and Logical Operators
-- [ ] Comparison: `<`, `<=`, `>`, `>=`, `==`, `!=`
-- [ ] Logical: `&&`, `||`, `!`
-- [ ] Add tests for `a < b && c > d`, `!x`
+- [x] Comparison: `<`, `<=`, `>`, `>=`, `==`, `!=`
+- [x] Logical: `&&`, `||`, `!`
+- [x] Add tests for `a < b && c > d`, `!x`
 
 ### M2.5: Bitwise Operators
-- [ ] Binary: `&`, `|`, `^`
-- [ ] Unary: `~`
-- [ ] Shift: `<<`, `>>` (add to lexer)
-- [ ] Add tests for `a & b | c`, `~x`
+- [x] Binary: `&`, `|`, `^`
+- [x] Unary: `~`
+- [x] Shift: `<<`, `>>` (add to lexer)
+- [x] Add tests for `a & b | c`, `~x`
 
 ### M2.6: Assignment Operators
-- [ ] Simple: `=`
+- [x] Simple: `=`
 - [ ] Compound: `+=`, `-=`, `*=`, `/=`, `%=`, `&=`, `|=`, `^=`, `<<=`, `>>=` (add to lexer)
-- [ ] Add tests for `x = 1`, `x += 2`
+- [x] Add tests for `x = 1`, `x += 2`
 
 ### M2.7: Other Expressions
 - [ ] Comma operator
-- [ ] Conditional (ternary): `?:`
+- [x] Conditional (ternary): `?:`
 - [ ] Prefix increment/decrement: `++x`, `--x` (add to lexer)
 - [ ] Postfix increment/decrement: `x++`, `x--`
-- [ ] Add tests for ternary, increment/decrement
+- [x] Add tests for ternary, increment/decrement
 
 ### M2.8: Function Calls
-- [ ] Add Call AST node
-- [ ] Parse function call: `f()`, `f(a, b)`
-- [ ] Add tests for calls
+- [x] Add Call AST node
+- [x] Parse function call: `f()`, `f(a, b)`
+- [x] Add tests for calls
 
 ### M2.9: Array/Member Access
-- [ ] Add Index AST node (array subscript)
+- [x] Add Index AST node (array subscript)
 - [ ] Add Member AST node (`.` and `->`)
-- [ ] Parse `a[i]`, `s.x`, `p->y`
-- [ ] Add tests for access expressions
+- [x] Parse `a[i]`, `s.x`, `p->y`
+- [x] Add tests for access expressions
 
 ### M2.10: Address/Dereference
 - [ ] Unary `&` (address-of)

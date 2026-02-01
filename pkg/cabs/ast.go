@@ -24,9 +24,101 @@ type Definition interface {
 	implDefinition()
 }
 
+// BinaryOp represents binary operators
+type BinaryOp int
+
+const (
+	OpAdd BinaryOp = iota
+	OpSub
+	OpMul
+	OpDiv
+	OpMod
+	OpLt
+	OpLe
+	OpGt
+	OpGe
+	OpEq
+	OpNe
+	OpAnd // &&
+	OpOr  // ||
+	OpBitAnd
+	OpBitOr
+	OpBitXor
+	OpShl // <<
+	OpShr // >>
+	OpAssign
+)
+
+func (op BinaryOp) String() string {
+	names := []string{"+", "-", "*", "/", "%", "<", "<=", ">", ">=", "==", "!=", "&&", "||", "&", "|", "^", "<<", ">>", "="}
+	if int(op) < len(names) {
+		return names[op]
+	}
+	return "?"
+}
+
+// UnaryOp represents unary operators
+type UnaryOp int
+
+const (
+	OpNeg    UnaryOp = iota // -
+	OpNot                   // !
+	OpBitNot                // ~
+)
+
+func (op UnaryOp) String() string {
+	names := []string{"-", "!", "~"}
+	if int(op) < len(names) {
+		return names[op]
+	}
+	return "?"
+}
+
 // Constant represents an integer constant
 type Constant struct {
 	Value int64
+}
+
+// Variable represents an identifier expression
+type Variable struct {
+	Name string
+}
+
+// Unary represents a unary expression
+type Unary struct {
+	Op   UnaryOp
+	Expr Expr
+}
+
+// Binary represents a binary expression
+type Binary struct {
+	Op    BinaryOp
+	Left  Expr
+	Right Expr
+}
+
+// Paren represents a parenthesized expression
+type Paren struct {
+	Expr Expr
+}
+
+// Conditional represents the ternary operator: cond ? then : else
+type Conditional struct {
+	Cond Expr
+	Then Expr
+	Else Expr
+}
+
+// Call represents a function call
+type Call struct {
+	Func Expr
+	Args []Expr
+}
+
+// Index represents array subscript access: arr[idx]
+type Index struct {
+	Array Expr
+	Index Expr
 }
 
 // Return represents a return statement
@@ -49,6 +141,27 @@ type FunDef struct {
 // Marker methods for interface implementation
 func (Constant) implCabsNode() {}
 func (Constant) implCabsExpr() {}
+
+func (Variable) implCabsNode() {}
+func (Variable) implCabsExpr() {}
+
+func (Unary) implCabsNode() {}
+func (Unary) implCabsExpr() {}
+
+func (Binary) implCabsNode() {}
+func (Binary) implCabsExpr() {}
+
+func (Paren) implCabsNode() {}
+func (Paren) implCabsExpr() {}
+
+func (Conditional) implCabsNode() {}
+func (Conditional) implCabsExpr() {}
+
+func (Call) implCabsNode() {}
+func (Call) implCabsExpr() {}
+
+func (Index) implCabsNode() {}
+func (Index) implCabsExpr() {}
 
 func (Return) implCabsNode() {}
 func (Return) implCabsStmt() {}

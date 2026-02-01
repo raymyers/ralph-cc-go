@@ -8,6 +8,25 @@ import (
 	"github.com/raymyers/ralph-cc/pkg/lexer"
 )
 
+// Precedence levels for Pratt parsing (lowest to highest)
+const (
+	precLowest     = 0
+	precAssign     = 1  // =
+	precTernary    = 2  // ?:
+	precOr         = 3  // ||
+	precAnd        = 4  // &&
+	precBitOr      = 5  // |
+	precBitXor     = 6  // ^
+	precBitAnd     = 7  // &
+	precEquality   = 8  // ==, !=
+	precRelational = 9  // <, <=, >, >=
+	precShift      = 10 // <<, >>
+	precAdditive   = 11 // +, -
+	precMulti      = 12 // *, /, %
+	precUnary      = 13 // -, !, ~
+	precPostfix    = 14 // function call, array subscript, member access
+)
+
 // Parser parses C source code into a Cabs AST
 type Parser struct {
 	l         *lexer.Lexer
@@ -164,16 +183,296 @@ func (p *Parser) parseReturnStatement() cabs.Stmt {
 	return cabs.Return{Expr: expr}
 }
 
+// parseExpression is the entry point for expression parsing
 func (p *Parser) parseExpression() cabs.Expr {
-	// For now, only parse integer literals
-	if p.curTokenIs(lexer.TokenInt) {
-		lit := p.curToken.Literal
-		p.nextToken()
-		var value int64
-		fmt.Sscanf(lit, "%d", &value)
-		return cabs.Constant{Value: value}
+	return p.parseExprPrec(precLowest)
+}
+
+// parseExprPrec implements Pratt parsing with the given precedence level
+// After calling parsePrefix, curToken is positioned on the token AFTER the prefix expression
+func (p *Parser) parseExprPrec(prec int) cabs.Expr {
+	left := p.parsePrefix()
+	if left == nil {
+		return nil
 	}
 
-	p.addError(fmt.Sprintf("expected expression, got %s", p.curToken.Type))
-	return nil
+	// curToken is now positioned on the potential infix operator
+	for prec < p.curPrecedence() {
+		left = p.parseInfix(left)
+		if left == nil {
+			return nil
+		}
+	}
+
+	return left
+}
+
+// parsePrefix parses prefix expressions: literals, identifiers, unary ops, parentheses
+// After parsing, curToken is positioned on the token AFTER the prefix expression
+func (p *Parser) parsePrefix() cabs.Expr {
+	switch p.curToken.Type {
+	case lexer.TokenInt:
+		return p.parseIntegerLiteral()
+	case lexer.TokenIdent:
+		return p.parseIdentifier()
+	case lexer.TokenLParen:
+		return p.parseGroupedExpression()
+	case lexer.TokenMinus:
+		return p.parsePrefixUnary(cabs.OpNeg)
+	case lexer.TokenNot:
+		return p.parsePrefixUnary(cabs.OpNot)
+	case lexer.TokenTilde:
+		return p.parsePrefixUnary(cabs.OpBitNot)
+	default:
+		p.addError(fmt.Sprintf("expected expression, got %s", p.curToken.Type))
+		return nil
+	}
+}
+
+func (p *Parser) parseIntegerLiteral() cabs.Expr {
+	lit := p.curToken.Literal
+	var value int64
+	fmt.Sscanf(lit, "%d", &value)
+	p.nextToken() // move past the literal
+	return cabs.Constant{Value: value}
+}
+
+func (p *Parser) parseIdentifier() cabs.Expr {
+	name := p.curToken.Literal
+	p.nextToken() // move past the identifier
+	return cabs.Variable{Name: name}
+}
+
+func (p *Parser) parseGroupedExpression() cabs.Expr {
+	p.nextToken() // consume '('
+
+	expr := p.parseExpression()
+	if expr == nil {
+		return nil
+	}
+
+	if !p.curTokenIs(lexer.TokenRParen) {
+		p.addError(fmt.Sprintf("expected ')', got %s", p.curToken.Type))
+		return nil
+	}
+	p.nextToken() // consume ')'
+
+	return cabs.Paren{Expr: expr}
+}
+
+func (p *Parser) parsePrefixUnary(op cabs.UnaryOp) cabs.Expr {
+	p.nextToken() // consume operator
+
+	expr := p.parseExprPrec(precUnary)
+	if expr == nil {
+		return nil
+	}
+
+	return cabs.Unary{Op: op, Expr: expr}
+}
+
+// parseInfix parses infix (binary) expressions
+// curToken is on the operator when called
+// After parsing, curToken is positioned on the token AFTER the expression
+func (p *Parser) parseInfix(left cabs.Expr) cabs.Expr {
+	// Special case for ternary operator
+	if p.curTokenIs(lexer.TokenQuestion) {
+		return p.parseTernary(left)
+	}
+
+	// Special case for function call
+	if p.curTokenIs(lexer.TokenLParen) {
+		return p.parseCall(left)
+	}
+
+	// Special case for array subscript
+	if p.curTokenIs(lexer.TokenLBracket) {
+		return p.parseIndex(left)
+	}
+
+	op, ok := p.tokenToBinaryOp()
+	if !ok {
+		p.addError(fmt.Sprintf("unexpected infix operator: %s", p.curToken.Type))
+		return nil
+	}
+
+	prec := p.curPrecedence()
+	p.nextToken() // consume operator
+
+	// Right-associative for assignment
+	if op == cabs.OpAssign {
+		prec--
+	}
+
+	right := p.parseExprPrec(prec)
+	if right == nil {
+		return nil
+	}
+
+	return cabs.Binary{Op: op, Left: left, Right: right}
+}
+
+// parseTernary parses the ternary operator: cond ? then : else
+func (p *Parser) parseTernary(cond cabs.Expr) cabs.Expr {
+	p.nextToken() // consume '?'
+
+	// Parse the 'then' expression (can include any operator, even comma)
+	then := p.parseExpression()
+	if then == nil {
+		return nil
+	}
+
+	if !p.curTokenIs(lexer.TokenColon) {
+		p.addError(fmt.Sprintf("expected ':' in ternary, got %s", p.curToken.Type))
+		return nil
+	}
+	p.nextToken() // consume ':'
+
+	// Parse the 'else' expression with ternary precedence (right-associative)
+	els := p.parseExprPrec(precTernary - 1)
+	if els == nil {
+		return nil
+	}
+
+	return cabs.Conditional{Cond: cond, Then: then, Else: els}
+}
+
+// parseCall parses a function call: f() or f(a, b, c)
+func (p *Parser) parseCall(fn cabs.Expr) cabs.Expr {
+	p.nextToken() // consume '('
+
+	var args []cabs.Expr
+
+	if !p.curTokenIs(lexer.TokenRParen) {
+		// Parse first argument
+		arg := p.parseExprPrec(precAssign) // Use assignment precedence to avoid comma confusion
+		if arg == nil {
+			return nil
+		}
+		args = append(args, arg)
+
+		// Parse remaining arguments
+		for p.curTokenIs(lexer.TokenComma) {
+			p.nextToken() // consume ','
+			arg := p.parseExprPrec(precAssign)
+			if arg == nil {
+				return nil
+			}
+			args = append(args, arg)
+		}
+	}
+
+	if !p.curTokenIs(lexer.TokenRParen) {
+		p.addError(fmt.Sprintf("expected ')' in call, got %s", p.curToken.Type))
+		return nil
+	}
+	p.nextToken() // consume ')'
+
+	return cabs.Call{Func: fn, Args: args}
+}
+
+// parseIndex parses array subscript: arr[idx]
+func (p *Parser) parseIndex(arr cabs.Expr) cabs.Expr {
+	p.nextToken() // consume '['
+
+	idx := p.parseExpression()
+	if idx == nil {
+		return nil
+	}
+
+	if !p.curTokenIs(lexer.TokenRBracket) {
+		p.addError(fmt.Sprintf("expected ']' in subscript, got %s", p.curToken.Type))
+		return nil
+	}
+	p.nextToken() // consume ']'
+
+	return cabs.Index{Array: arr, Index: idx}
+}
+
+// tokenToBinaryOp converts the current token to a binary operator
+func (p *Parser) tokenToBinaryOp() (cabs.BinaryOp, bool) {
+	switch p.curToken.Type {
+	case lexer.TokenPlus:
+		return cabs.OpAdd, true
+	case lexer.TokenMinus:
+		return cabs.OpSub, true
+	case lexer.TokenStar:
+		return cabs.OpMul, true
+	case lexer.TokenSlash:
+		return cabs.OpDiv, true
+	case lexer.TokenPercent:
+		return cabs.OpMod, true
+	case lexer.TokenLt:
+		return cabs.OpLt, true
+	case lexer.TokenLe:
+		return cabs.OpLe, true
+	case lexer.TokenGt:
+		return cabs.OpGt, true
+	case lexer.TokenGe:
+		return cabs.OpGe, true
+	case lexer.TokenEq:
+		return cabs.OpEq, true
+	case lexer.TokenNe:
+		return cabs.OpNe, true
+	case lexer.TokenAnd:
+		return cabs.OpAnd, true
+	case lexer.TokenOr:
+		return cabs.OpOr, true
+	case lexer.TokenAmpersand:
+		return cabs.OpBitAnd, true
+	case lexer.TokenPipe:
+		return cabs.OpBitOr, true
+	case lexer.TokenCaret:
+		return cabs.OpBitXor, true
+	case lexer.TokenShl:
+		return cabs.OpShl, true
+	case lexer.TokenShr:
+		return cabs.OpShr, true
+	case lexer.TokenAssign:
+		return cabs.OpAssign, true
+	default:
+		return 0, false
+	}
+}
+
+// precedences maps token types to their precedence levels
+func tokenPrecedence(t lexer.TokenType) int {
+	switch t {
+	case lexer.TokenAssign:
+		return precAssign
+	case lexer.TokenQuestion:
+		return precTernary
+	case lexer.TokenOr:
+		return precOr
+	case lexer.TokenAnd:
+		return precAnd
+	case lexer.TokenPipe:
+		return precBitOr
+	case lexer.TokenCaret:
+		return precBitXor
+	case lexer.TokenAmpersand:
+		return precBitAnd
+	case lexer.TokenEq, lexer.TokenNe:
+		return precEquality
+	case lexer.TokenLt, lexer.TokenLe, lexer.TokenGt, lexer.TokenGe:
+		return precRelational
+	case lexer.TokenShl, lexer.TokenShr:
+		return precShift
+	case lexer.TokenPlus, lexer.TokenMinus:
+		return precAdditive
+	case lexer.TokenStar, lexer.TokenSlash, lexer.TokenPercent:
+		return precMulti
+	case lexer.TokenLParen, lexer.TokenLBracket:
+		return precPostfix
+	default:
+		return precLowest
+	}
+}
+
+func (p *Parser) curPrecedence() int {
+	return tokenPrecedence(p.curToken.Type)
+}
+
+func (p *Parser) peekPrecedence() int {
+	return tokenPrecedence(p.peekToken.Type)
 }

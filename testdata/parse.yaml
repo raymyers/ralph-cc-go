@@ -39,3 +39,134 @@ tests:
             expr:
               kind: Constant
               value: 42
+
+  - name: "return variable"
+    input: |
+      int f() { return x; }
+    ast:
+      kind: FunDef
+      name: f
+      return_type: int
+      body:
+        kind: Block
+        items:
+          - kind: Return
+            expr:
+              kind: Variable
+              name: x
+
+  - name: "return parenthesized expression"
+    input: |
+      int f() { return (42); }
+    ast:
+      kind: FunDef
+      name: f
+      return_type: int
+      body:
+        kind: Block
+        items:
+          - kind: Return
+            expr:
+              kind: Paren
+              expr:
+                kind: Constant
+                value: 42
+
+  - name: "binary addition"
+    input: |
+      int f() { return 1 + 2; }
+    ast:
+      kind: FunDef
+      name: f
+      return_type: int
+      body:
+        kind: Block
+        items:
+          - kind: Return
+            expr:
+              kind: Binary
+              op: "+"
+              left:
+                kind: Constant
+                value: 1
+              right:
+                kind: Constant
+                value: 2
+
+  - name: "unary negation"
+    input: |
+      int f() { return -5; }
+    ast:
+      kind: FunDef
+      name: f
+      return_type: int
+      body:
+        kind: Block
+        items:
+          - kind: Return
+            expr:
+              kind: Unary
+              op: "-"
+              expr:
+                kind: Constant
+                value: 5
+
+  - name: "precedence mul over add"
+    input: |
+      int f() { return 1 + 2 * 3; }
+    ast:
+      kind: FunDef
+      name: f
+      return_type: int
+      body:
+        kind: Block
+        items:
+          - kind: Return
+            expr:
+              kind: Binary
+              op: "+"
+              left:
+                kind: Constant
+                value: 1
+              right:
+                kind: Binary
+                op: "*"
+                left:
+                  kind: Constant
+                  value: 2
+                right:
+                  kind: Constant
+                  value: 3
+
+  - name: "logical and comparison"
+    input: |
+      int f() { return 1 < 2 && 3 > 4; }
+    ast:
+      kind: FunDef
+      name: f
+      return_type: int
+      body:
+        kind: Block
+        items:
+          - kind: Return
+            expr:
+              kind: Binary
+              op: "&&"
+              left:
+                kind: Binary
+                op: "<"
+                left:
+                  kind: Constant
+                  value: 1
+                right:
+                  kind: Constant
+                  value: 2
+              right:
+                kind: Binary
+                op: ">"
+                left:
+                  kind: Constant
+                  value: 3
+                right:
+                  kind: Constant
+                  value: 4

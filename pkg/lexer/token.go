@@ -25,25 +25,29 @@ const (
 	TokenStruct  // struct
 
 	// Operators
-	TokenPlus     // +
-	TokenMinus    // -
-	TokenStar     // *
-	TokenSlash    // /
-	TokenPercent  // %
-	TokenAssign   // =
-	TokenEq       // ==
-	TokenNe       // !=
-	TokenLt       // <
-	TokenLe       // <=
-	TokenGt       // >
-	TokenGe       // >=
-	TokenAnd      // &&
-	TokenOr       // ||
-	TokenNot      // !
+	TokenPlus      // +
+	TokenMinus     // -
+	TokenStar      // *
+	TokenSlash     // /
+	TokenPercent   // %
+	TokenAssign    // =
+	TokenEq        // ==
+	TokenNe        // !=
+	TokenLt        // <
+	TokenLe        // <=
+	TokenGt        // >
+	TokenGe        // >=
+	TokenAnd       // &&
+	TokenOr        // ||
+	TokenNot       // !
 	TokenAmpersand // &
-	TokenPipe     // |
-	TokenCaret    // ^
-	TokenTilde    // ~
+	TokenPipe      // |
+	TokenCaret     // ^
+	TokenTilde     // ~
+	TokenShl       // <<
+	TokenShr       // >>
+	TokenQuestion  // ?
+	TokenColon     // :
 
 	// Delimiters
 	TokenLParen    // (
@@ -92,6 +96,10 @@ var tokenNames = map[TokenType]string{
 	TokenPipe:      "|",
 	TokenCaret:     "^",
 	TokenTilde:     "~",
+	TokenShl:       "<<",
+	TokenShr:       ">>",
+	TokenQuestion:  "?",
+	TokenColon:     ":",
 	TokenLParen:    "(",
 	TokenRParen:    ")",
 	TokenLBrace:    "{",
