@@ -1021,6 +1021,79 @@ func TestExpressionStatement(t *testing.T) {
 	}
 }
 
+func TestIfStatement(t *testing.T) {
+	tests := []struct {
+		name    string
+		input   string
+		hasElse bool
+	}{
+		{"if only", "int f() { if (x) return 1; }", false},
+		{"if with else", "int f() { if (x) return 1; else return 0; }", true},
+		{"if with block", "int f() { if (x) { return 1; } }", false},
+		{"if-else with blocks", "int f() { if (x) { return 1; } else { return 0; } }", true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			l := lexer.New(tt.input)
+			p := New(l)
+			def := p.ParseDefinition()
+
+			if len(p.Errors()) > 0 {
+				t.Fatalf("parser errors: %v", p.Errors())
+			}
+
+			funDef := def.(cabs.FunDef)
+			if len(funDef.Body.Items) != 1 {
+				t.Fatalf("expected 1 statement, got %d", len(funDef.Body.Items))
+			}
+
+			ifStmt, ok := funDef.Body.Items[0].(cabs.If)
+			if !ok {
+				t.Fatalf("expected If, got %T", funDef.Body.Items[0])
+			}
+
+			if tt.hasElse && ifStmt.Else == nil {
+				t.Error("expected else branch, got nil")
+			}
+			if !tt.hasElse && ifStmt.Else != nil {
+				t.Error("expected no else branch")
+			}
+		})
+	}
+}
+
+func TestDanglingElse(t *testing.T) {
+	// The dangling else should bind to the nearest if
+	input := `int f() { if (a) if (b) return 1; else return 2; }`
+
+	l := lexer.New(input)
+	p := New(l)
+	def := p.ParseDefinition()
+
+	if len(p.Errors()) > 0 {
+		t.Fatalf("parser errors: %v", p.Errors())
+	}
+
+	funDef := def.(cabs.FunDef)
+	outerIf := funDef.Body.Items[0].(cabs.If)
+
+	// Outer if should NOT have else (else binds to inner if)
+	if outerIf.Else != nil {
+		t.Error("outer if should not have else branch")
+	}
+
+	// Then should be an if statement with an else
+	innerIf, ok := outerIf.Then.(cabs.If)
+	if !ok {
+		t.Fatalf("expected inner If, got %T", outerIf.Then)
+	}
+
+	if innerIf.Else == nil {
+		t.Error("inner if should have else branch")
+	}
+}
+
 func TestMultipleStatements(t *testing.T) {
 	input := `int f() { x = 1; y = 2; return x + y; }`
 

@@ -92,10 +92,10 @@ Detailed task list to implement the parsing plan from docs/PARSING.md. The goal 
 - [x] Add tests for `f(); x = 1;`
 
 ### M3.2: If/Else Statements
-- [ ] Add If AST node
-- [ ] Parse `if (cond) stmt`
-- [ ] Parse `if (cond) stmt else stmt`
-- [ ] Add tests including dangling else
+- [x] Add If AST node
+- [x] Parse `if (cond) stmt`
+- [x] Parse `if (cond) stmt else stmt`
+- [x] Add tests including dangling else
 
 ### M3.3: While/Do-While Loops
 - [ ] Add While, DoWhile AST nodes

@@ -171,6 +171,13 @@ type Computation struct {
 	Expr Expr
 }
 
+// If represents an if statement (with optional else)
+type If struct {
+	Cond Expr
+	Then Stmt
+	Else Stmt // nil if no else branch
+}
+
 // Block represents a compound statement (block)
 type Block struct {
 	Items []Stmt
@@ -225,6 +232,9 @@ func (Return) implCabsStmt() {}
 
 func (Computation) implCabsNode() {}
 func (Computation) implCabsStmt() {}
+
+func (If) implCabsNode() {}
+func (If) implCabsStmt() {}
 
 func (Block) implCabsNode() {}
 func (Block) implCabsStmt() {}

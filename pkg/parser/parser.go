@@ -162,6 +162,10 @@ func (p *Parser) parseStatement() cabs.Stmt {
 	switch p.curToken.Type {
 	case lexer.TokenReturn:
 		return p.parseReturnStatement()
+	case lexer.TokenIf:
+		return p.parseIfStatement()
+	case lexer.TokenLBrace:
+		return p.parseBlock()
 	default:
 		// Expression statement: expr;
 		return p.parseExpressionStatement()
@@ -179,6 +183,36 @@ func (p *Parser) parseExpressionStatement() cabs.Stmt {
 	}
 
 	return cabs.Computation{Expr: expr}
+}
+
+func (p *Parser) parseIfStatement() cabs.Stmt {
+	p.nextToken() // consume 'if'
+
+	if !p.expect(lexer.TokenLParen) {
+		return nil
+	}
+
+	cond := p.parseExpression()
+	if cond == nil {
+		return nil
+	}
+
+	if !p.expect(lexer.TokenRParen) {
+		return nil
+	}
+
+	then := p.parseStatement()
+	if then == nil {
+		return nil
+	}
+
+	var els cabs.Stmt
+	if p.curTokenIs(lexer.TokenElse) {
+		p.nextToken() // consume 'else'
+		els = p.parseStatement()
+	}
+
+	return cabs.If{Cond: cond, Then: then, Else: els}
 }
 
 func (p *Parser) parseReturnStatement() cabs.Stmt {
