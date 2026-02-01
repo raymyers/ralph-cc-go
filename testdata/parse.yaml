@@ -1,0 +1,41 @@
+tests:
+  - name: "empty main function"
+    input: |
+      int main() {}
+    ast:
+      kind: FunDef
+      name: main
+      return_type: int
+      body:
+        kind: Block
+        items: []
+
+  - name: "return zero"
+    input: |
+      int f() { return 0; }
+    ast:
+      kind: FunDef
+      name: f
+      return_type: int
+      body:
+        kind: Block
+        items:
+          - kind: Return
+            expr:
+              kind: Constant
+              value: 0
+
+  - name: "return integer literal"
+    input: |
+      int answer() { return 42; }
+    ast:
+      kind: FunDef
+      name: answer
+      return_type: int
+      body:
+        kind: Block
+        items:
+          - kind: Return
+            expr:
+              kind: Constant
+              value: 42
