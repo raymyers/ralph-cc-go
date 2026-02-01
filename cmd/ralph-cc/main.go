@@ -7,6 +7,8 @@ import (
 	"os"
 	"strings"
 
+	"github.com/raymyers/ralph-cc/pkg/asm"
+	"github.com/raymyers/ralph-cc/pkg/asmgen"
 	"github.com/raymyers/ralph-cc/pkg/cabs"
 	"github.com/raymyers/ralph-cc/pkg/clight"
 	"github.com/raymyers/ralph-cc/pkg/clightgen"
@@ -49,10 +51,9 @@ type debugFlagInfo struct {
 }
 
 // debugFlags maps flag names to descriptions for unimplemented warnings
-// Note: dparse, dclight, dcsharpminor, dcminor, drtl, dltl, and dmach are handled separately as they're implemented
+// Note: dparse, dclight, dcsharpminor, dcminor, drtl, dltl, dmach, and dasm are handled separately as they're implemented
 var debugFlags = map[string]debugFlagInfo{
-	"dc":   {&dC, "dump CompCert C"},
-	"dasm": {&dAsm, "dump assembly"},
+	"dc": {&dC, "dump CompCert C"},
 }
 
 // ErrNotImplemented indicates a feature is not yet implemented
@@ -160,6 +161,11 @@ CompCert design with the goal of equivalent output on each IR.`,
 			// Handle -dmach: transform to Mach and dump
 			if dMach {
 				return doMach(filename, out, errOut)
+			}
+
+			// Handle -dasm: transform to Assembly and dump
+			if dAsm {
+				return doAsm(filename, out, errOut)
 			}
 
 			fmt.Fprintf(errOut, "ralph-cc: compiling %s\n", filename)
@@ -616,4 +622,83 @@ func machOutputFilename(filename string) string {
 		return filename[:len(filename)-len(ext)] + ".mach"
 	}
 	return filename + ".mach"
+}
+
+// doAsm transforms the file to Assembly and writes output to .s file
+func doAsm(filename string, out, errOut io.Writer) error {
+	content, err := os.ReadFile(filename)
+	if err != nil {
+		fmt.Fprintf(errOut, "ralph-cc: error reading %s: %v\n", filename, err)
+		return err
+	}
+
+	// Parse
+	l := lexer.New(string(content))
+	p := parser.New(l)
+	program := p.ParseProgram()
+
+	if len(p.Errors()) > 0 {
+		for _, e := range p.Errors() {
+			fmt.Fprintf(errOut, "%s: %s\n", filename, e)
+		}
+		return fmt.Errorf("parsing failed with %d errors", len(p.Errors()))
+	}
+
+	// Transform to Clight
+	clightProg := clightgen.TranslateProgram(program)
+
+	// Transform to Csharpminor
+	csharpminorProg := cshmgen.TranslateProgram(clightProg)
+
+	// Transform to Cminor
+	cminorProg := cminorgen.TransformProgram(csharpminorProg)
+
+	// Transform to CminorSel
+	selCtx := selection.NewSelectionContext(nil, nil)
+	cminorselProg := selCtx.SelectProgram(*cminorProg)
+
+	// Transform to RTL
+	rtlProg := rtlgen.TranslateProgram(cminorselProg)
+
+	// Transform to LTL
+	ltlProg := regalloc.TransformProgram(rtlProg)
+
+	// Transform to Linear
+	linearProg := linearize.TransformProgram(ltlProg)
+
+	// Transform to Mach
+	machProg := stacking.TransformProgram(linearProg)
+
+	// Transform to Assembly
+	asmProg := asmgen.TransformProgram(machProg)
+
+	// Compute output filename: input.c -> input.s
+	outputFilename := asmOutputFilename(filename)
+
+	// Create output file
+	outFile, err := os.Create(outputFilename)
+	if err != nil {
+		fmt.Fprintf(errOut, "ralph-cc: error creating %s: %v\n", outputFilename, err)
+		return err
+	}
+	defer outFile.Close()
+
+	// Print the Assembly to the file
+	printer := asm.NewPrinter(outFile)
+	printer.PrintProgram(asmProg)
+
+	// Also print to stdout for convenience
+	printer = asm.NewPrinter(out)
+	printer.PrintProgram(asmProg)
+
+	return nil
+}
+
+// asmOutputFilename returns the output filename for -dasm
+func asmOutputFilename(filename string) string {
+	ext := ".c"
+	if strings.HasSuffix(filename, ext) {
+		return filename[:len(filename)-len(ext)] + ".s"
+	}
+	return filename + ".s"
 }
