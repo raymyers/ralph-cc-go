@@ -350,4 +350,22 @@ tests:
               kind: Constant
               value: 0
 
+  - name: "__builtin_va_list parameter"
+    input: |
+      int f(__builtin_va_list ap) { return 0; }
+    ast:
+      kind: FunDef
+      name: f
+      return_type: int
+      params:
+        - type: __builtin_va_list
+          name: ap
+      body:
+        kind: Block
+        items:
+          - kind: Return
+            expr:
+              kind: Constant
+              value: 0
+
 

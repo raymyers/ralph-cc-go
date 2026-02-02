@@ -44,6 +44,10 @@ func New(l *lexer.Lexer) *Parser {
 		l:        l,
 		typedefs: make(map[string]bool),
 	}
+	// Pre-register compiler built-in types that act as typedefs.
+	// __builtin_va_list is used by system headers (e.g., stdarg.h, stdio.h)
+	// to define va_list.
+	p.typedefs["__builtin_va_list"] = true
 	// Read three tokens to initialize curToken, peekToken, and peekPeekToken
 	p.nextToken()
 	p.nextToken()

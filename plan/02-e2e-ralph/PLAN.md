@@ -74,11 +74,11 @@ The following parser limitations prevent compiling programs with `#include <stdi
     - Updated printer to output inline struct/union/enum in typedef correctly
     - Added comprehensive tests: TestTypedefInlineStructUnion, TestTypedefInlineEnum
 
-[ ] Parser: Support `__builtin_va_list` compiler built-in type
+[x] Parser: Support `__builtin_va_list` compiler built-in type
     - macOS headers use `typedef __builtin_va_list __darwin_va_list;`
-    - This is a compiler built-in type, not a regular identifier
-    - Could add as pre-defined typedef or special token
-    - Cascading effect: `va_list` typedef chain fails → 55+ "type specifier in parameter" errors
+    - Pre-registered as a built-in typedef in parser initialization
+    - Reduced errors from 206 to 24 when parsing hello.c
+    - Added test case in testdata/parse.yaml
 
 [x] Parser: Support `__inline` and `inline` keywords
     - System headers use `extern __inline __attribute__(...) int __sputc(...) { ... }`
