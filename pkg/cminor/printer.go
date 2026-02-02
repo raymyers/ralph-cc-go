@@ -283,6 +283,12 @@ func (p *Printer) printConst(c Constant) {
 		fmt.Fprintf(p.w, "%dL", v.Value)
 	case Osingleconst:
 		fmt.Fprintf(p.w, "%gf", v.Value)
+	case Oaddrsymbol:
+		if v.Offset == 0 {
+			fmt.Fprintf(p.w, "&%s", v.Name)
+		} else {
+			fmt.Fprintf(p.w, "&%s+%d", v.Name, v.Offset)
+		}
 	default:
 		fmt.Fprintf(p.w, "/* unknown const %T */", c)
 	}

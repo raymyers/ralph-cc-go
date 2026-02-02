@@ -251,6 +251,12 @@ type Osingleconst struct {
 	Value float32
 }
 
+// Oaddrsymbol represents the address of a symbol (string constant, global var)
+type Oaddrsymbol struct {
+	Name   string
+	Offset int64 // offset from symbol start
+}
+
 // --- Expressions ---
 
 // Evar represents a reference to a global variable
@@ -436,6 +442,7 @@ func (Ointconst) implCsharpminorNode()   {}
 func (Ofloatconst) implCsharpminorNode() {}
 func (Olongconst) implCsharpminorNode()  {}
 func (Osingleconst) implCsharpminorNode() {}
+func (Oaddrsymbol) implCsharpminorNode() {}
 func (Evar) implCsharpminorNode()        {}
 func (Etempvar) implCsharpminorNode()    {}
 func (Eaddrof) implCsharpminorNode()     {}
@@ -466,6 +473,7 @@ func (Ointconst) implCsharpminorConst()   {}
 func (Ofloatconst) implCsharpminorConst() {}
 func (Olongconst) implCsharpminorConst()  {}
 func (Osingleconst) implCsharpminorConst() {}
+func (Oaddrsymbol) implCsharpminorConst() {}
 
 // Marker methods for Expr interface
 func (Evar) implCsharpminorExpr()     {}

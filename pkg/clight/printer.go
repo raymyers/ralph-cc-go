@@ -252,6 +252,9 @@ func (p *Printer) printExpr(expr Expr) {
 	case Econst_single:
 		fmt.Fprintf(p.w, "%gf", e.Value)
 
+	case Estring:
+		fmt.Fprintf(p.w, "%q", e.Value)
+
 	case Evar:
 		fmt.Fprint(p.w, e.Name)
 

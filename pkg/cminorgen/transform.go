@@ -98,6 +98,8 @@ func (t *Transformer) transformConst(c csharpminor.Constant) cminor.Expr {
 		return cminor.Econst{Const: cminor.Olongconst{Value: cnst.Value}}
 	case csharpminor.Osingleconst:
 		return cminor.Econst{Const: cminor.Osingleconst{Value: cnst.Value}}
+	case csharpminor.Oaddrsymbol:
+		return cminor.Econst{Const: cminor.Oaddrsymbol{Name: cnst.Name, Offset: cnst.Offset}}
 	}
 	panic(fmt.Sprintf("unhandled constant type: %T", c))
 }

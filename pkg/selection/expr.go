@@ -83,6 +83,8 @@ func (ctx *SelectionContext) selectConst(c cminor.Econst) cminorsel.Expr {
 		return cminorsel.Econst{Const: cminorsel.Olongconst{Value: cnst.Value}}
 	case cminor.Osingleconst:
 		return cminorsel.Econst{Const: cminorsel.Osingleconst{Value: cnst.Value}}
+	case cminor.Oaddrsymbol:
+		return cminorsel.Econst{Const: cminorsel.Oaddrsymbol{Symbol: cnst.Name, Offset: cnst.Offset}}
 	default:
 		return cminorsel.Econst{Const: cminorsel.Ointconst{Value: 0}}
 	}

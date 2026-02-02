@@ -71,6 +71,10 @@ func HasSideEffects(e cabs.Expr) bool {
 	switch expr := e.(type) {
 	case cabs.Constant:
 		return false
+	case cabs.StringLiteral:
+		return false
+	case cabs.CharLiteral:
+		return false
 	case cabs.Variable:
 		return false
 	case cabs.Paren:
@@ -118,6 +122,44 @@ func (t *Transformer) TransformExpr(e cabs.Expr) TransformResult {
 	case cabs.Constant:
 		return TransformResult{
 			Expr: clight.Econst_int{Value: expr.Value, Typ: ctypes.Int()},
+		}
+
+	case cabs.StringLiteral:
+		// String literals become pointers to constant char arrays
+		return TransformResult{
+			Expr: clight.Estring{Value: expr.Value, Typ: ctypes.Pointer(ctypes.Char())},
+		}
+
+	case cabs.CharLiteral:
+		// Character literals become integer constants (ASCII value)
+		value := int64(0)
+		if len(expr.Value) > 0 {
+			if expr.Value[0] == '\\' && len(expr.Value) > 1 {
+				// Handle escape sequences
+				switch expr.Value[1] {
+				case 'n':
+					value = 10 // newline
+				case 't':
+					value = 9 // tab
+				case 'r':
+					value = 13 // carriage return
+				case '0':
+					value = 0 // null
+				case '\\':
+					value = 92 // backslash
+				case '\'':
+					value = 39 // single quote
+				case '"':
+					value = 34 // double quote
+				default:
+					value = int64(expr.Value[1])
+				}
+			} else {
+				value = int64(expr.Value[0])
+			}
+		}
+		return TransformResult{
+			Expr: clight.Econst_int{Value: value, Typ: ctypes.Int()},
 		}
 
 	case cabs.Variable:

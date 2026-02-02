@@ -3,15 +3,27 @@
 package cshmgen
 
 import (
+	"fmt"
+
 	"github.com/raymyers/ralph-cc/pkg/clight"
 	"github.com/raymyers/ralph-cc/pkg/csharpminor"
 	"github.com/raymyers/ralph-cc/pkg/ctypes"
 )
 
+// StringLiteral holds info about a string literal for later emission.
+type StringLiteral struct {
+	Label string
+	Value string
+}
+
 // ExprTranslator translates Clight expressions to Csharpminor expressions.
 type ExprTranslator struct {
 	// globals tracks which variables are global (vs local temporaries)
 	globals map[string]bool
+	// stringCounter generates unique labels for string literals
+	stringCounter int
+	// strings collects all string literals for later emission
+	strings []StringLiteral
 }
 
 // NewExprTranslator creates a new expression translator.
@@ -19,7 +31,12 @@ func NewExprTranslator(globals map[string]bool) *ExprTranslator {
 	if globals == nil {
 		globals = make(map[string]bool)
 	}
-	return &ExprTranslator{globals: globals}
+	return &ExprTranslator{globals: globals, stringCounter: 0, strings: nil}
+}
+
+// GetStrings returns all collected string literals.
+func (t *ExprTranslator) GetStrings() []StringLiteral {
+	return t.strings
 }
 
 // TranslateExpr translates a Clight expression to a Csharpminor expression.
@@ -33,6 +50,8 @@ func (t *ExprTranslator) TranslateExpr(e clight.Expr) csharpminor.Expr {
 		return t.translateConstFloat(expr)
 	case clight.Econst_single:
 		return t.translateConstSingle(expr)
+	case clight.Estring:
+		return t.translateString(expr)
 	case clight.Evar:
 		return t.translateVar(expr)
 	case clight.Etempvar:
@@ -75,6 +94,17 @@ func (t *ExprTranslator) translateConstFloat(e clight.Econst_float) csharpminor.
 // translateConstSingle translates a float32 constant.
 func (t *ExprTranslator) translateConstSingle(e clight.Econst_single) csharpminor.Expr {
 	return csharpminor.Econst{Const: csharpminor.Osingleconst{Value: e.Value}}
+}
+
+// translateString translates a string literal to a symbol address constant.
+// Generates a unique label and stores the string for later emission.
+func (t *ExprTranslator) translateString(e clight.Estring) csharpminor.Expr {
+	// Generate unique label for this string
+	label := fmt.Sprintf(".Lstr%d", t.stringCounter)
+	t.stringCounter++
+	// Store for later emission in rodata section
+	t.strings = append(t.strings, StringLiteral{Label: label, Value: e.Value})
+	return csharpminor.Econst{Const: csharpminor.Oaddrsymbol{Name: label, Offset: 0}}
 }
 
 // translateVar translates a variable reference.

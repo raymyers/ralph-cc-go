@@ -102,6 +102,12 @@ type Econst_single struct {
 	Typ   ctypes.Type
 }
 
+// Estring represents a string literal (pointer to constant char array)
+type Estring struct {
+	Value string
+	Typ   ctypes.Type // pointer to char
+}
+
 // Evar represents a reference to a global or local variable (in memory)
 type Evar struct {
 	Name string
@@ -288,6 +294,7 @@ func (Econst_int) implClightNode()    {}
 func (Econst_float) implClightNode()  {}
 func (Econst_long) implClightNode()   {}
 func (Econst_single) implClightNode() {}
+func (Estring) implClightNode()       {}
 func (Evar) implClightNode()          {}
 func (Etempvar) implClightNode()      {}
 func (Ederef) implClightNode()        {}
@@ -319,6 +326,7 @@ func (Econst_int) implClightExpr()    {}
 func (Econst_float) implClightExpr()  {}
 func (Econst_long) implClightExpr()   {}
 func (Econst_single) implClightExpr() {}
+func (Estring) implClightExpr()       {}
 func (Evar) implClightExpr()          {}
 func (Etempvar) implClightExpr()      {}
 func (Ederef) implClightExpr()        {}
@@ -351,6 +359,7 @@ func (e Econst_int) ExprType() ctypes.Type    { return e.Typ }
 func (e Econst_float) ExprType() ctypes.Type  { return e.Typ }
 func (e Econst_long) ExprType() ctypes.Type   { return e.Typ }
 func (e Econst_single) ExprType() ctypes.Type { return e.Typ }
+func (e Estring) ExprType() ctypes.Type       { return e.Typ }
 func (e Evar) ExprType() ctypes.Type          { return e.Typ }
 func (e Etempvar) ExprType() ctypes.Type      { return e.Typ }
 func (e Ederef) ExprType() ctypes.Type        { return e.Typ }

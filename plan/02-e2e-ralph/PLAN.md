@@ -145,4 +145,30 @@ The following literal handling is needed to compile programs with `#include <std
     - Added data-driven tests in parse.yaml for character literals
     - Test cases: char c = 'x', if (c == '\n'), return 'a'
 
-[ ] Verify hello.c after literal support is added
+[x] Verify hello.c after literal support is added
+    - String literals now correctly parsed through all IR stages (Cabs → Clight → Csharpminor → Cminor → RTL → Asm)
+    - Character literals converted to integer constants (ASCII values)
+    - Added Estring type to clight AST
+    - Added Oaddrsymbol constant type to csharpminor, cminor, and selection passes
+    - hello.c with stdio.h now parses without errors (206 errors → 0)
+    - Remaining issues identified (see tasks below)
+
+# Assembly Generation Issues
+
+The following issues prevent hello.c from running correctly after compilation:
+
+[ ] Asmgen: Make function labels unique across the program
+    - Each function uses `.L1` for labels, causing "symbol already defined" errors
+    - Need function-local or globally unique labels
+
+[ ] Asmgen: Emit string literal data in .rodata section  
+    - String literals generate `.Lstr0` etc labels but no data section
+    - Need to emit `.section .rodata` with `.ascii` directives
+
+[ ] Asmgen: Generate proper function calls with `bl` instead of `blr`
+    - Function calls use `blr x0` (indirect call through register)
+    - Should use `bl printf` (direct call to symbol)
+
+[ ] Parser/Clightgen: Don't generate bodies for function declarations
+    - System header function declarations become empty function definitions
+    - Only definitions with actual bodies should generate code
