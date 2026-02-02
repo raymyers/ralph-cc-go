@@ -4,11 +4,18 @@
 
 Run simply with `openhands --headless -f plan/01-cli-ralph/RALPH.md`.
 
-Log more data to file, and other conveniences:
+Log more data to file:
+
+```sh
+TERM=dumb openhands --headless -f plan/01-cli-ralph/RALPH.md --json > plan/01-cli-ralph/logs/`date +%Y%m%d-%H-%M-%S`.log
+```
+
+With other conveniences:
 
 ```sh
 function ralph1() {
-    TERM=dumb openhands --headless -f plan/01-cli-ralph/RALPH.md --json > plan/01-cli-ralph/logs/`date +%Y%m%d-%H-%M-%S`.log
+    local logfile="plan/01-cli-ralph/logs/$(date +%Y%m%d-%H-%M-%S).log"
+    env TERM=dumb openhands --headless -f plan/01-cli-ralph/RALPH.md --json > "$logfile"
 }
 
 function save_plan() {
