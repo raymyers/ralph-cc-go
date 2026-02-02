@@ -198,7 +198,7 @@ Macro expansion is the most complex part. Key rules:
 
 **Goal:** Implement #if, #ifdef, #ifndef, #elif, #else, #endif
 
-**Status:** TODO
+**Status:** DONE
 
 ### Context
 
@@ -210,19 +210,19 @@ Conditional compilation requires evaluating constant expressions. The expression
 
 ### Tasks
 
-- [ ] Create `pkg/cpp/conditional.go` for conditionals
-- [ ] Implement condition evaluation:
-  - [ ] Expand macros in expression first
-  - [ ] Parse constant expression
-  - [ ] Evaluate to integer result
-  - [ ] Zero = false, non-zero = true
-- [ ] Implement `defined` operator
-- [ ] Handle `#ifdef NAME` as `#if defined(NAME)`
-- [ ] Handle `#ifndef NAME` as `#if !defined(NAME)`
-- [ ] Implement nested conditionals (stack-based)
-- [ ] Skip tokens in false branches (still track nesting)
-- [ ] Error on unbalanced conditionals
-- [ ] Add tests for conditional compilation
+- [x] Create `pkg/cpp/conditional.go` for conditionals
+- [x] Implement condition evaluation:
+  - [x] Expand macros in expression first
+  - [x] Parse constant expression
+  - [x] Evaluate to integer result
+  - [x] Zero = false, non-zero = true
+- [x] Implement `defined` operator
+- [x] Handle `#ifdef NAME` as `#if defined(NAME)`
+- [x] Handle `#ifndef NAME` as `#if !defined(NAME)`
+- [x] Implement nested conditionals (stack-based)
+- [x] Skip tokens in false branches (still track nesting)
+- [x] Error on unbalanced conditionals
+- [x] Add tests for conditional compilation
 
 ## Milestone 7: Include Processing
 
