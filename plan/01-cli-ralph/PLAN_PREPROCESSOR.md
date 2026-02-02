@@ -228,7 +228,7 @@ Conditional compilation requires evaluating constant expressions. The expression
 
 **Goal:** Implement #include directive processing
 
-**Status:** TODO
+**Status:** DONE
 
 ### Context
 
@@ -240,15 +240,34 @@ Conditional compilation requires evaluating constant expressions. The expression
 
 ### Tasks
 
-- [ ] Implement `#include "file"` (quoted form)
-- [ ] Implement `#include <file>` (angle bracket form)
-- [ ] Recursively preprocess included files
-- [ ] Generate `#line` directives for file transitions
-- [ ] Implement include guards recognition (optimization)
-- [ ] Handle `#pragma once` (common extension)
-- [ ] Track include stack for error messages
-- [ ] Limit include depth to prevent stack overflow
-- [ ] Add tests with multi-file includes
+- [x] Implement `#include "file"` (quoted form)
+- [x] Implement `#include <file>` (angle bracket form)
+- [x] Recursively preprocess included files
+- [x] Generate `#line` directives for file transitions
+- [x] Implement include guards recognition (optimization)
+- [x] Handle `#pragma once` (common extension)
+- [x] Track include stack for error messages
+- [x] Limit include depth to prevent stack overflow
+- [x] Add tests with multi-file includes
+
+### Implementation Notes
+
+Created `pkg/cpp/preprocess.go` with main `Preprocessor` driver that:
+- Integrates lexer, directive parser, macro table, expander, conditional processor
+- Handles `#include` with quoted and angled forms
+- Detects include guards pattern (`#ifndef GUARD / #define GUARD / #endif`)
+- Supports `#pragma once` via IncludeResolver
+- Detects circular includes and enforces max depth (200)
+- Generates `#line` markers when enabled
+- Processes macros defined in included files for use in main file
+- Tests in `pkg/cpp/preprocess_test.go` cover:
+  - Simple preprocessing, macro expansion, conditionals
+  - Quoted and angled includes, nested includes
+  - Include guards, #pragma once
+  - Circular include detection
+  - Error handling (#error, missing includes)
+  - Command-line -D/-U flags
+  - Relative path resolution for sibling includes
 
 ## Milestone 8: Output Generation
 
