@@ -58,4 +58,37 @@ The following parser limitations prevent compiling programs with `#include <stdi
     - Added TestAttributeSkipping and TestAttributeTokens tests
     - Also handles __asm__() variant, multiple consecutive attributes
 
-[ ] Confirm `testdata/example-c/hello.c` now runs and prints as expected, otherwise add tasks.
+[x] Confirm `testdata/example-c/hello.c` now runs and prints as expected, otherwise add tasks.
+    - Still failing with 206 parser errors in system headers
+    - Root causes identified (see tasks below)
+
+# Additional Parser Issues for System Headers
+
+The following parser limitations prevent compiling programs with `#include <stdio.h>`:
+
+[ ] Parser: Support `typedef struct/union { ... } name;` (anonymous inline definitions)
+    - System headers use `typedef union { char __mbstate8[128]; long long _mbstateL; } __mbstate_t;`
+    - Current parser expects struct/union to be followed by an identifier name, not `{`
+    - Need to parse inline struct/union body within typedef declarations
+    - ~2 direct errors ("expected typedef name, got {") cascade to many more
+
+[ ] Parser: Support `__builtin_va_list` compiler built-in type
+    - macOS headers use `typedef __builtin_va_list __darwin_va_list;`
+    - This is a compiler built-in type, not a regular identifier
+    - Could add as pre-defined typedef or special token
+    - Cascading effect: `va_list` typedef chain fails → 55+ "type specifier in parameter" errors
+
+[ ] Parser: Support `__inline` and `inline` keywords
+    - System headers use `extern __inline __attribute__(...) int __sputc(...) { ... }`
+    - Need to skip/handle `__inline` as function specifier (like storage class)
+    - Also need to handle `inline` for C99 compatibility
+
+[ ] Parser: Support variable declarations without function context
+    - System headers have `extern const int sys_nerr;` and `extern const char *const sys_errlist[];`
+    - ~16 errors of "expected (, got ;" for extern variable declarations
+    - Parser currently expects function definition after type + name
+
+[ ] Parser: Support function pointer parameters in function declarations
+    - `funopen(const void *, int (*)(void *, char *, int), ...)` style
+    - ~45 errors related to function pointer parameters being misinterpreted
+    - Need to recognize `type (*)(params)` pattern in parameter lists
