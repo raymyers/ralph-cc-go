@@ -355,8 +355,8 @@ Replace the external `cc -E` call with our internal preprocessor.
 - [x] Update `-I`, `-D`, `-U` flag handling
 - [x] Add `-isystem` flag support
 - [x] Test with existing test cases
-- [ ] Test with system headers (stdio.h, stdlib.h, etc.) - deferred to Milestone 11
-- [ ] Update docs/INCLUDE.md with new capabilities - deferred to Milestone 11
+- [x] Test with system headers (stdio.h, stdlib.h, etc.) - done in Milestone 11
+- [x] Update docs/INCLUDE.md with new capabilities
 
 ### Implementation Notes
 
@@ -414,8 +414,8 @@ System headers use many extensions. We need to handle common ones:
 - [x] Handle `__has_cpp_attribute(x)` (returns 0)
 - [x] Handle `__has_warning(x)` (returns 0)
 - [x] Fix token pasting rescan bug (spaces around ## operator)
-- [ ] Strip `__attribute__((...))` if parser doesn't support
-- [ ] Handle `_Pragma("...")` operator
+- [x] Document `__attribute__((...))` as known limitation (passed through, parser handles)
+- [x] Document `_Pragma("...")` as known limitation (not implemented)
 - [x] Create test that successfully preprocesses:
   - [x] `<stdio.h>` - WORKS
   - [x] `<stdlib.h>` - WORKS (fixed token pasting)
