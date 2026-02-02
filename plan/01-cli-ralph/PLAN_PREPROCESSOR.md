@@ -69,7 +69,7 @@ The preprocessing phase operates on "preprocessing tokens" which differ slightly
 
 **Goal:** Implement system and user include path searching
 
-**Status:** TODO
+**Status:** DONE
 
 ### Context
 
@@ -81,19 +81,19 @@ We need to find system include directories automatically.
 
 ### Tasks
 
-- [ ] Create `pkg/cpp/include.go` for include path handling
-- [ ] Detect system include paths:
-  - [ ] Query `cc -v -E - </dev/null 2>&1` for include paths (bootstrap)
-  - [ ] Default paths: `/usr/include`, `/usr/local/include`
-  - [ ] macOS: `/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include`
-  - [ ] Linux: `/usr/include`, `/usr/lib/gcc/*/include`
-- [ ] Implement include search order:
-  - [ ] For `"file"`: current file's directory, then `-I` paths, then system
-  - [ ] For `<file>`: `-I` paths, then system
-- [ ] Handle `-I` flag to add include directories
-- [ ] Handle `-isystem` flag for system include directories
-- [ ] Detect and prevent circular includes
-- [ ] Add tests with mock file system
+- [x] Create `pkg/cpp/include.go` for include path handling
+- [x] Detect system include paths:
+  - [x] Query `cc -v -E - </dev/null 2>&1` for include paths (bootstrap)
+  - [x] Default paths: `/usr/include`, `/usr/local/include`
+  - [x] macOS: `/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include`
+  - [x] Linux: `/usr/include`, `/usr/lib/gcc/*/include`
+- [x] Implement include search order:
+  - [x] For `"file"`: current file's directory, then `-I` paths, then system
+  - [x] For `<file>`: `-I` paths, then system
+- [x] Handle `-I` flag to add include directories
+- [x] Handle `-isystem` flag for system include directories
+- [x] Detect and prevent circular includes
+- [x] Add tests with mock file system
 
 ## Milestone 3: Directive Parser
 
