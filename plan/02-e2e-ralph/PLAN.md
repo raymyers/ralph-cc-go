@@ -172,9 +172,12 @@ The following issues prevent hello.c from running correctly after compilation:
     - Local labels (.Lstr0 etc) not marked as .global
     - Added e2e tests for string literal emission
 
-[ ] Asmgen: Generate proper function calls with `bl` instead of `blr`
-    - Function calls use `blr x0` (indirect call through register)
-    - Should use `bl printf` (direct call to symbol)
+[x] Asmgen: Generate proper function calls with `bl` instead of `blr`
+    - Function calls were using `blr x0` (indirect call through register)
+    - Now use `bl printf` (direct call to symbol) for named functions
+    - Root cause: function names were not in Globals map during instruction selection
+    - Fixed by adding function names to Globals in SelectProgram
+    - Updated test expectation in e2e_asm.yaml from `blr` to `bl\thelper`
 
 [ ] Parser/Clightgen: Don't generate bodies for function declarations
     - System header function declarations become empty function definitions

@@ -274,10 +274,15 @@ func (ctx *SelectionContext) SelectFunction(f cminor.Function) cminorsel.Functio
 
 // SelectProgram transforms a Cminor program to a CminorSel program.
 func (ctx *SelectionContext) SelectProgram(p cminor.Program) cminorsel.Program {
-	// Build globals set from program
+	// Build globals set from program (includes global variables and function names)
 	globals := make(map[string]bool)
 	for _, g := range p.Globals {
 		globals[g.Name] = true
+	}
+	// Function names are also global symbols - this allows direct calls
+	// to use FunSymbol instead of indirect calls via FunReg
+	for _, f := range p.Functions {
+		globals[f.Name] = true
 	}
 	ctx.Globals = globals
 

@@ -37,7 +37,7 @@ tests:
       - ".global\tmain"
       - "helper:"
       - "main:"
-      - "blr"  # indirect call via register
+      - "bl\thelper"  # direct call to function symbol
 
   - name: "local variable"
     input: |
