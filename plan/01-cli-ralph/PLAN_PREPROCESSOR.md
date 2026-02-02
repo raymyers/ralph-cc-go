@@ -167,7 +167,7 @@ Macros can be redefined only to identical definitions.
 
 **Goal:** Implement macro expansion including argument substitution
 
-**Status:** TODO
+**Status:** DONE
 
 ### Context
 
@@ -179,20 +179,20 @@ Macro expansion is the most complex part. Key rules:
 
 ### Tasks
 
-- [ ] Create `pkg/cpp/expand.go` for macro expansion
-- [ ] Implement object-like macro expansion
-- [ ] Implement function-like macro expansion:
-  - [ ] Parse argument list from invocation
-  - [ ] Expand arguments before substitution
-  - [ ] Handle variadic macros (`__VA_ARGS__`)
-- [ ] Implement stringification (`#arg`)
-  - [ ] Convert tokens to string with proper escaping
-- [ ] Implement token pasting (`a##b`)
-  - [ ] Concatenate adjacent tokens
-  - [ ] Handle invalid results (error)
-- [ ] Prevent recursive expansion (blue paint algorithm)
-- [ ] Handle empty arguments
-- [ ] Add comprehensive expansion tests
+- [x] Create `pkg/cpp/expand.go` for macro expansion
+- [x] Implement object-like macro expansion
+- [x] Implement function-like macro expansion:
+  - [x] Parse argument list from invocation
+  - [x] Expand arguments before substitution
+  - [x] Handle variadic macros (`__VA_ARGS__`)
+- [x] Implement stringification (`#arg`)
+  - [x] Convert tokens to string with proper escaping
+- [x] Implement token pasting (`a##b`)
+  - [x] Concatenate adjacent tokens
+  - [x] Handle invalid results (error)
+- [x] Prevent recursive expansion (blue paint algorithm)
+- [x] Handle empty arguments
+- [x] Add comprehensive expansion tests
 
 ## Milestone 6: Conditional Compilation
 
