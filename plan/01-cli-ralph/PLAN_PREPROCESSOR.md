@@ -37,7 +37,7 @@ The preprocessor operates on a token stream before parsing:
 
 **Goal:** Create a dedicated preprocessing lexer that handles raw source
 
-**Status:** TODO
+**Status:** DONE
 
 ### Context
 
@@ -49,21 +49,21 @@ The preprocessing phase operates on "preprocessing tokens" which differ slightly
 
 ### Tasks
 
-- [ ] Create `pkg/cpp/lexer.go` with preprocessing token types
-- [ ] Define preprocessing tokens:
-  - [ ] `PP_IDENTIFIER` - identifiers and keywords
-  - [ ] `PP_NUMBER` - preprocessing numbers (broader than C numbers)
-  - [ ] `PP_CHAR_CONST` - character constants
-  - [ ] `PP_STRING` - string literals
-  - [ ] `PP_PUNCTUATOR` - operators and punctuation
-  - [ ] `PP_HASH` - `#` at line start (directive marker)
-  - [ ] `PP_HASHHASH` - `##` (token pasting)
-  - [ ] `PP_NEWLINE` - significant for directive boundaries
-  - [ ] `PP_WHITESPACE` - preserved for macro spacing
-- [ ] Implement line continuation (`\` followed by newline)
-- [ ] Track source locations (file, line, column)
-- [ ] Handle comments (replace with single space per C spec)
-- [ ] Add tests for pp-token lexing
+- [x] Create `pkg/cpp/lexer.go` with preprocessing token types
+- [x] Define preprocessing tokens:
+  - [x] `PP_IDENTIFIER` - identifiers and keywords
+  - [x] `PP_NUMBER` - preprocessing numbers (broader than C numbers)
+  - [x] `PP_CHAR_CONST` - character constants
+  - [x] `PP_STRING` - string literals
+  - [x] `PP_PUNCTUATOR` - operators and punctuation
+  - [x] `PP_HASH` - `#` at line start (directive marker)
+  - [x] `PP_HASHHASH` - `##` (token pasting)
+  - [x] `PP_NEWLINE` - significant for directive boundaries
+  - [x] `PP_WHITESPACE` - preserved for macro spacing
+- [x] Implement line continuation (`\` followed by newline)
+- [x] Track source locations (file, line, column)
+- [x] Handle comments (replace with single space per C spec)
+- [x] Add tests for pp-token lexing
 
 ## Milestone 2: Include Path Resolution
 
