@@ -10,3 +10,9 @@ function save_plan() {
 }
 
 ```
+
+## Watching
+
+```sh
+ watch -n 10 -c "(grep -m 1 -C2 '\[ \]' plan/02-e2e-ralph/PLAN.md || true) && echo '\n--- untracked ---' && git ls-files --others --exclude-standard && echo '--- git diff ---' && git diff --stat && echo '--- git log ---' && git log --oneline -n 10"
+ ```
