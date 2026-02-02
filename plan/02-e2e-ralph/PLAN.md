@@ -105,4 +105,35 @@ The following parser limitations prevent compiling programs with `#include <stdi
     - Reduced parsing errors from ~45 to 3 (remaining errors are unrelated)
     - Added comprehensive tests: TestFunctionPointerParameter
 
-[ ] Confirm `testdata/example-c/hello.c` now runs and prints as expected, otherwise add tasks.
+[x] Confirm `testdata/example-c/hello.c` now runs and prints as expected, otherwise add tasks.
+    - Still failing with 3 parser errors in system headers and main code:
+      - Line 1019: `'\n'` character literal - lexer returns ILLEGAL token (single quotes not handled)
+      - Line 1021: Cascading error from failed if-condition parse (else unexpected)  
+      - Line 1158: `"Hello, World!\n"` string literal - not handled as expression
+    - Root causes identified:
+      1. Character literals not tokenized (lexer has no case for `'`)
+      2. String literals not parsed as expressions (TokenString exists but parsePrefix() doesn't handle it)
+    - Tasks added below to address these issues
+
+# Literal Support for System Headers and hello.c
+
+The following literal handling is needed to compile programs with `#include <stdio.h>`:
+
+[ ] Lexer: Support character literals ('x', '\n', '\\', etc.)
+    - Add TokenChar token type to lexer
+    - Handle single-quoted character literals including escape sequences
+    - Test cases: 'a', '\n', '\t', '\\', '\0', '\''
+
+[ ] Parser: Support string literals in expressions
+    - Add StringLiteral AST node to cabs package
+    - Add case for TokenString in parsePrefix() function
+    - String literals can appear as function arguments, initializers, etc.
+    - Test cases: printf("hello"), char *s = "world"
+
+[ ] Parser: Support character literals in expressions
+    - Add CharLiteral AST node to cabs package
+    - Add case for TokenChar in parsePrefix() function
+    - Character literals can appear in comparisons, assignments, etc.
+    - Test cases: char c = 'x', if (c == '\n')
+
+[ ] Verify hello.c after literal support is added
