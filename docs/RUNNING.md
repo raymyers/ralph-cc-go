@@ -131,8 +131,25 @@ main:
     ret
 ```
 
+### Hello World with stdio.h
+
+```
+$ ./scripts/run.sh testdata/example-c/hello.c
+==> Compiling testdata/example-c/hello.c to ARM64 assembly...
+==> Converting to macOS format...
+==> Assembling...
+==> Linking...
+==> Running testdata/example-c/hello...
+---
+Hello, World!
+---
+Exit code: 0
+```
+
+The program correctly includes `<stdio.h>`, calls `printf`, and runs successfully.
+
 ## Known Limitations
 
-- Only tested with simple programs (arithmetic, basic control flow)
-- Complex programs with structs, arrays, or function calls may have issues
+- Only tested with simple programs (arithmetic, basic control flow, function calls)
+- Structs and arrays are partially supported but may have issues
 - No floating-point support tested

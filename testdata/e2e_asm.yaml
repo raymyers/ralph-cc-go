@@ -190,3 +190,20 @@ tests:
       - ".Lstr1:"             # second string
       - ".text"
       - ".global\tmain"
+
+  - name: "external function call"
+    # External functions (declared but not defined) should generate direct calls
+    input: |
+      int puts(char* s);
+      int main() {
+        puts("hello");
+        return 0;
+      }
+    expect:
+      - ".section\t.rodata"   # string literal
+      - ".Lstr0:"             # string label
+      - "adrp\tx0"            # load string address
+      - "bl\tputs"            # direct call to external function (not blr!)
+      - ".global\tmain"
+    expect_not:
+      - "blr"                 # should NOT use indirect call

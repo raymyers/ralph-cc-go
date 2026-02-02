@@ -460,3 +460,96 @@ func TestSelectProgram_GlobalsPopulated(t *testing.T) {
 		t.Errorf("expected symbol 'data', got %q", g.Symbol)
 	}
 }
+
+func TestSelectProgram_ExternalFunctions(t *testing.T) {
+	ctx := NewSelectionContext(nil, nil)
+	// Program with a call to an external function (like printf)
+	// The external function is not defined in the program, only called
+	prog := cminor.Program{
+		Globals:   []cminor.GlobVar{},
+		Functions: []cminor.Function{
+			{
+				Name: "main",
+				Sig:  cminor.Sig{Return: "i"},
+				// Call to "printf" which is external (not in p.Functions)
+				Body: cminor.Scall{
+					Result: nil,
+					Func:   cminor.Evar{Name: "printf"},
+					Args:   []cminor.Expr{cminor.Econst{Const: cminor.Ointconst{Value: 0}}},
+				},
+				Stackspace: 0,
+			},
+		},
+	}
+	sel := ctx.SelectProgram(prog)
+
+	// The call's function should be Oaddrsymbol, not Evar
+	call, ok := sel.Functions[0].Body.(cminorsel.Scall)
+	if !ok {
+		t.Fatalf("expected Scall, got %T", sel.Functions[0].Body)
+	}
+	econst, ok := call.Func.(cminorsel.Econst)
+	if !ok {
+		t.Fatalf("expected function to be Econst (address of symbol), got %T", call.Func)
+	}
+	addr, ok := econst.Const.(cminorsel.Oaddrsymbol)
+	if !ok {
+		t.Fatalf("expected Oaddrsymbol, got %T", econst.Const)
+	}
+	if addr.Symbol != "printf" {
+		t.Errorf("expected symbol 'printf', got %q", addr.Symbol)
+	}
+}
+
+func TestCollectExternalFunctions(t *testing.T) {
+	// Test the collectExternalFunctions helper directly
+	defined := map[string]bool{"main": true, "helper": true}
+
+	// Scall with external function
+	stmt := cminor.Scall{
+		Func: cminor.Evar{Name: "printf"},
+		Args: []cminor.Expr{},
+	}
+
+	externals := make(map[string]bool)
+	collectExternalFunctionsInStmt(stmt, defined, externals)
+
+	if !externals["printf"] {
+		t.Error("expected 'printf' to be detected as external")
+	}
+
+	// Scall with defined function should NOT be in externals
+	stmt2 := cminor.Scall{
+		Func: cminor.Evar{Name: "helper"},
+		Args: []cminor.Expr{},
+	}
+
+	externals2 := make(map[string]bool)
+	collectExternalFunctionsInStmt(stmt2, defined, externals2)
+
+	if externals2["helper"] {
+		t.Error("'helper' should not be detected as external - it's defined")
+	}
+}
+
+func TestCollectExternalFunctions_Nested(t *testing.T) {
+	// Test that external functions are found in nested statements
+	defined := map[string]bool{"main": true}
+
+	// Nested call: if (...) { printf(...); }
+	stmt := cminor.Sifthenelse{
+		Cond: cminor.Econst{Const: cminor.Ointconst{Value: 1}},
+		Then: cminor.Scall{
+			Func: cminor.Evar{Name: "printf"},
+			Args: []cminor.Expr{},
+		},
+		Else: cminor.Sskip{},
+	}
+
+	externals := make(map[string]bool)
+	collectExternalFunctionsInStmt(stmt, defined, externals)
+
+	if !externals["printf"] {
+		t.Error("expected 'printf' to be detected as external in nested if-then")
+	}
+}

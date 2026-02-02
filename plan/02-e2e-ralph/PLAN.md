@@ -186,4 +186,11 @@ The following issues prevent hello.c from running correctly after compilation:
     - Reduced hello.c assembly from 90 to 2 functions (only __sputc inline and main)
     - Added TestTranslateProgram_SkipsFunctionDeclarations test
 
-[ ] Verify running hello.c with run.sh. Study and update `plan/02-e2e-ralph/PLAN_HELLO.md` to address if there are issues.
+[x] Verify running hello.c with run.sh. Study and update `plan/02-e2e-ralph/PLAN_HELLO.md` to address if there are issues.
+    - hello.c now compiles and runs correctly, printing "Hello, World!"
+    - Fixed external function calls (printf) to use direct bl instead of indirect blr
+    - Issue: selection phase didn't track external functions as globals
+    - Solution: Added collectExternalFunctions() to scan for undeclared function calls
+    - Also fixed run.sh to handle ADRP/ADD @PAGE/@PAGEOFF for macOS assembly
+
+[ ] How close is this to a usable compiler for short programs (~100 lines, common features) ? Make a plan to determine the status rigorously. `plan/02-e2e-ralph/PLAN_USABLE.md`

@@ -38,14 +38,35 @@ fi
 
 # Step 2: Convert Linux/ELF assembly to macOS/Mach-O format
 # - Remove .type and .size directives (ELF-specific)
+# - Convert .section .rodata to macOS equivalent
 # - Add underscore prefix to global symbols and labels (macOS ABI)
+# - Convert ADRP/ADD pairs to use @PAGE/@PAGEOFF for local labels
 echo "==> Converting to macOS format..."
-perl -pe '
-    s/^\s*\.type.*//;       # Remove .type directive
-    s/^\s*\.size.*//;       # Remove .size directive
+perl -ne '
+    BEGIN { $adrp_label = ""; }
+    
+    s/^\s*\.type.*\n//;       # Remove .type directive
+    s/^\s*\.size.*\n//;       # Remove .size directive
+    s/^\s*\.section\s+\.rodata.*/.section __DATA,__const/;  # Convert rodata section
     s/\.global\s+([a-zA-Z_][a-zA-Z0-9_]*)/.global _\1/;  # Prefix global symbols
     s/^([a-zA-Z_][a-zA-Z0-9_]*):/_\1:/;                   # Prefix label definitions
     s/\bbl\s+([a-zA-Z_][a-zA-Z0-9_]*)/bl _\1/;           # Prefix bl targets
+    
+    # Handle ADRP to local labels - capture the label for the next ADD
+    if (/\badrp\s+(\w+),\s*(\.L\w+)/) {
+        $adrp_label = $2;
+        s/\badrp\s+(\w+),\s*(\.L\w+)/adrp\t$1, $2\@PAGE/;
+    }
+    # Handle ADD after ADRP - use @PAGEOFF with the captured label
+    elsif ($adrp_label ne "" && /^\s*add\s+(\w+),\s*(\w+),\s*#0\s*\n/) {
+        s/^\s*add\s+(\w+),\s*(\w+),\s*#0\s*\n/\tadd\t$1, $2, $adrp_label\@PAGEOFF\n/;
+        $adrp_label = "";
+    }
+    else {
+        $adrp_label = "";
+    }
+    
+    print;
 ' "$ASM_FILE" > "$MACOS_ASM"
 
 # Step 3: Assemble

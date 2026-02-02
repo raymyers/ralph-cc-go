@@ -126,8 +126,9 @@ func (t *Transformer) TransformExpr(e cabs.Expr) TransformResult {
 
 	case cabs.StringLiteral:
 		// String literals become pointers to constant char arrays
+		// Process escape sequences in the string value
 		return TransformResult{
-			Expr: clight.Estring{Value: expr.Value, Typ: ctypes.Pointer(ctypes.Char())},
+			Expr: clight.Estring{Value: processEscapeSequences(expr.Value), Typ: ctypes.Pointer(ctypes.Char())},
 		}
 
 	case cabs.CharLiteral:
@@ -680,4 +681,43 @@ func (t *Transformer) typeFromString(typeName string) ctypes.Type {
 		}
 		return ctypes.Int() // default fallback
 	}
+}
+
+// processEscapeSequences converts escape sequences in a string literal to their actual characters.
+// For example, `\n` becomes a newline character (byte 10).
+func processEscapeSequences(s string) string {
+	var result []byte
+	for i := 0; i < len(s); i++ {
+		if s[i] == '\\' && i+1 < len(s) {
+			switch s[i+1] {
+			case 'n':
+				result = append(result, '\n')
+				i++
+			case 't':
+				result = append(result, '\t')
+				i++
+			case 'r':
+				result = append(result, '\r')
+				i++
+			case '0':
+				result = append(result, 0)
+				i++
+			case '\\':
+				result = append(result, '\\')
+				i++
+			case '"':
+				result = append(result, '"')
+				i++
+			case '\'':
+				result = append(result, '\'')
+				i++
+			default:
+				// Unknown escape - keep backslash and character
+				result = append(result, s[i])
+			}
+		} else {
+			result = append(result, s[i])
+		}
+	}
+	return string(result)
 }

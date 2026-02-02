@@ -284,6 +284,14 @@ func (ctx *SelectionContext) SelectProgram(p cminor.Program) cminorsel.Program {
 	for _, f := range p.Functions {
 		globals[f.Name] = true
 	}
+
+	// Collect external function references (functions called but not defined)
+	// This is needed for direct calls to external functions like printf
+	externals := collectExternalFunctions(p, globals)
+	for name := range externals {
+		globals[name] = true
+	}
+
 	ctx.Globals = globals
 
 	// Transform global variables
@@ -306,5 +314,51 @@ func (ctx *SelectionContext) SelectProgram(p cminor.Program) cminorsel.Program {
 	return cminorsel.Program{
 		Globals:   globVars,
 		Functions: funcs,
+	}
+}
+
+// collectExternalFunctions scans the program for function calls to names that
+// are not defined in the program. These are external functions (like printf).
+func collectExternalFunctions(p cminor.Program, defined map[string]bool) map[string]bool {
+	externals := make(map[string]bool)
+
+	for _, f := range p.Functions {
+		collectExternalFunctionsInStmt(f.Body, defined, externals)
+	}
+
+	return externals
+}
+
+// collectExternalFunctionsInStmt recursively scans a statement for external function calls.
+func collectExternalFunctionsInStmt(s cminor.Stmt, defined map[string]bool, externals map[string]bool) {
+	switch stmt := s.(type) {
+	case cminor.Scall:
+		// Check if the function is an Evar reference to an undefined name
+		if evar, ok := stmt.Func.(cminor.Evar); ok {
+			if !defined[evar.Name] {
+				externals[evar.Name] = true
+			}
+		}
+	case cminor.Stailcall:
+		if evar, ok := stmt.Func.(cminor.Evar); ok {
+			if !defined[evar.Name] {
+				externals[evar.Name] = true
+			}
+		}
+	case cminor.Sseq:
+		collectExternalFunctionsInStmt(stmt.First, defined, externals)
+		collectExternalFunctionsInStmt(stmt.Second, defined, externals)
+	case cminor.Sifthenelse:
+		collectExternalFunctionsInStmt(stmt.Then, defined, externals)
+		collectExternalFunctionsInStmt(stmt.Else, defined, externals)
+	case cminor.Sloop:
+		collectExternalFunctionsInStmt(stmt.Body, defined, externals)
+	case cminor.Sblock:
+		collectExternalFunctionsInStmt(stmt.Body, defined, externals)
+	case cminor.Sswitch:
+		for _, c := range stmt.Cases {
+			collectExternalFunctionsInStmt(c.Body, defined, externals)
+		}
+		collectExternalFunctionsInStmt(stmt.Default, defined, externals)
 	}
 }

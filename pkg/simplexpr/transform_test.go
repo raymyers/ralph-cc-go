@@ -439,3 +439,53 @@ func TestReset(t *testing.T) {
 		t.Error("expected temps to be cleared after reset")
 	}
 }
+
+func TestProcessEscapeSequences(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    string
+		expected string
+	}{
+		{"no escapes", "hello", "hello"},
+		{"newline", `Hello\n`, "Hello\n"},
+		{"tab", `a\tb`, "a\tb"},
+		{"carriage return", `a\rb`, "a\rb"},
+		{"null", `a\0b`, "a\x00b"},
+		{"backslash", `a\\b`, "a\\b"},
+		{"double quote", `a\"b`, "a\"b"},
+		{"single quote", `a\'b`, "a'b"},
+		{"multiple escapes", `Hello\nWorld\n`, "Hello\nWorld\n"},
+		{"mixed content", `Line1\nLine2\tTabbed`, "Line1\nLine2\tTabbed"},
+		{"empty string", "", ""},
+		{"just newline", `\n`, "\n"},
+		{"consecutive escapes", `\n\n\t`, "\n\n\t"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := processEscapeSequences(tt.input)
+			if got != tt.expected {
+				t.Errorf("processEscapeSequences(%q) = %q, want %q", tt.input, got, tt.expected)
+			}
+		})
+	}
+}
+
+func TestTransformExpr_StringLiteralWithEscapes(t *testing.T) {
+	tr := New()
+	result := tr.TransformExpr(cabs.StringLiteral{Value: `Hello\nWorld`})
+
+	if len(result.Stmts) != 0 {
+		t.Errorf("expected no statements, got %d", len(result.Stmts))
+	}
+
+	estr, ok := result.Expr.(clight.Estring)
+	if !ok {
+		t.Fatalf("expected Estring, got %T", result.Expr)
+	}
+
+	expected := "Hello\nWorld"
+	if estr.Value != expected {
+		t.Errorf("expected value %q, got %q", expected, estr.Value)
+	}
+}
