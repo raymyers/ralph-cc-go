@@ -17,6 +17,10 @@ func TranslateProgram(prog *cabs.Program) *clight.Program {
 	for _, def := range prog.Definitions {
 		switch d := def.(type) {
 		case cabs.FunDef:
+			// Skip function declarations (prototypes) - only process definitions with bodies
+			if d.Body == nil {
+				continue
+			}
 			fn := translateFunction(&d)
 			result.Functions = append(result.Functions, fn)
 		case cabs.StructDef:

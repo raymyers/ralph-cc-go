@@ -179,6 +179,9 @@ The following issues prevent hello.c from running correctly after compilation:
     - Fixed by adding function names to Globals in SelectProgram
     - Updated test expectation in e2e_asm.yaml from `blr` to `bl\thelper`
 
-[ ] Parser/Clightgen: Don't generate bodies for function declarations
+[x] Parser/Clightgen: Don't generate bodies for function declarations
     - System header function declarations become empty function definitions
     - Only definitions with actual bodies should generate code
+    - Fixed by checking for nil Body in TranslateProgram and skipping declarations
+    - Reduced hello.c assembly from 90 to 2 functions (only __sputc inline and main)
+    - Added TestTranslateProgram_SkipsFunctionDeclarations test

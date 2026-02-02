@@ -41,6 +41,49 @@ func TestTranslateProgram_SingleFunction(t *testing.T) {
 	}
 }
 
+func TestTranslateProgram_SkipsFunctionDeclarations(t *testing.T) {
+	// Function declarations (prototypes with nil Body) should be skipped
+	prog := &cabs.Program{
+		Definitions: []cabs.Definition{
+			// Declaration (prototype) - should be skipped
+			cabs.FunDef{
+				Name:       "printf",
+				ReturnType: "int",
+				Params: []cabs.Param{
+					{Name: "format", TypeSpec: "char*"},
+				},
+				Variadic: true,
+				Body:     nil, // nil Body indicates declaration, not definition
+			},
+			// Definition - should be included
+			cabs.FunDef{
+				Name:       "main",
+				ReturnType: "int",
+				Params:     nil,
+				Body:       &cabs.Block{Items: []cabs.Stmt{}},
+			},
+			// Another declaration - should be skipped
+			cabs.FunDef{
+				Name:       "puts",
+				ReturnType: "int",
+				Params: []cabs.Param{
+					{Name: "s", TypeSpec: "char*"},
+				},
+				Body: nil,
+			},
+		},
+	}
+	result := TranslateProgram(prog)
+
+	// Only the definition (main) should be translated
+	if len(result.Functions) != 1 {
+		t.Fatalf("expected 1 function (definition only), got %d", len(result.Functions))
+	}
+	if result.Functions[0].Name != "main" {
+		t.Errorf("expected function name 'main', got %q", result.Functions[0].Name)
+	}
+}
+
 func TestTranslateProgram_FunctionWithParams(t *testing.T) {
 	prog := &cabs.Program{
 		Definitions: []cabs.Definition{
