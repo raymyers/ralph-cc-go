@@ -40,10 +40,4 @@ The following parser limitations prevent compiling programs with `#include <stdi
     - `__attribute__((__format__ (__printf__, 1, 2)))` on printf
     - May need to be stripped/ignored during parsing
 
-# Alternative Approach
-
-[ ] Consider: Create minimal stdlib headers for ralph-cc
-    - Provide `include/ralph/stdio.h` with just needed declarations
-    - Use `-I` to override system headers
-    - Smaller scope than fixing all parser issues
-    - CompCert takes this approach with compcert-specific headers
+[ ] Confirm `testdata/example-c/hello.c` now runs and prints as expected.
