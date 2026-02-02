@@ -101,3 +101,5 @@ The following parser limitations prevent compiling programs with `#include <stdi
     - `funopen(const void *, int (*)(void *, char *, int), ...)` style
     - ~45 errors related to function pointer parameters being misinterpreted
     - Need to recognize `type (*)(params)` pattern in parameter lists
+
+[ ] Confirm `testdata/example-c/hello.c` now runs and prints as expected, otherwise add tasks.
