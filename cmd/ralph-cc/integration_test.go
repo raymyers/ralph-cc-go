@@ -363,6 +363,173 @@ int main() {
 	includePaths = nil
 }
 
+// E2ERuntimeTestSpec represents a single end-to-end runtime test case
+type E2ERuntimeTestSpec struct {
+	Name         string `yaml:"name"`
+	Input        string `yaml:"input"`
+	ExpectedExit int    `yaml:"expected_exit"`
+	Skip         string `yaml:"skip,omitempty"`
+}
+
+// E2ERuntimeTestFile represents the e2e_runtime.yaml file structure
+type E2ERuntimeTestFile struct {
+	Tests []E2ERuntimeTestSpec `yaml:"tests"`
+}
+
+// TestE2ERuntimeYAML tests end-to-end C compilation with actual execution
+func TestE2ERuntimeYAML(t *testing.T) {
+	// Check if we can run executables (need assembler and linker)
+	if _, err := exec.LookPath("as"); err != nil {
+		t.Skip("assembler 'as' not found in PATH")
+	}
+	if _, err := exec.LookPath("ld"); err != nil {
+		t.Skip("linker 'ld' not found in PATH")
+	}
+
+	// Load test cases from YAML
+	data, err := os.ReadFile("../../testdata/e2e_runtime.yaml")
+	if err != nil {
+		t.Fatalf("e2e_runtime.yaml not found: %v", err)
+	}
+
+	var testFile E2ERuntimeTestFile
+	if err := yaml.Unmarshal(data, &testFile); err != nil {
+		t.Fatalf("failed to parse e2e_runtime.yaml: %v", err)
+	}
+
+	for _, tc := range testFile.Tests {
+		t.Run(tc.Name, func(t *testing.T) {
+			if tc.Skip != "" {
+				t.Skip(tc.Skip)
+			}
+
+			// Create temp directory for build artifacts
+			tmpDir := t.TempDir()
+			testCFile := filepath.Join(tmpDir, "test.c")
+			testSFile := filepath.Join(tmpDir, "test.s")
+			testOFile := filepath.Join(tmpDir, "test.o")
+			testExe := filepath.Join(tmpDir, "test")
+
+			// Write C source
+			if err := os.WriteFile(testCFile, []byte(tc.Input), 0644); err != nil {
+				t.Fatalf("failed to write test file: %v", err)
+			}
+
+			// Step 1: Compile C to assembly with ralph-cc
+			resetDebugFlags()
+			var asmOut, errOut bytes.Buffer
+			cmd := newRootCmd(&asmOut, &errOut)
+			cmd.SetArgs([]string{"--dasm", testCFile})
+			if err := cmd.Execute(); err != nil {
+				t.Fatalf("ralph-cc failed: %v\nStderr: %s", err, errOut.String())
+			}
+
+			// Step 2: Convert to macOS format if needed
+			asmContent := asmOut.String()
+			asmContent = convertToMacOS(asmContent)
+
+			// Write assembly
+			if err := os.WriteFile(testSFile, []byte(asmContent), 0644); err != nil {
+				t.Fatalf("failed to write assembly: %v", err)
+			}
+
+			// Step 3: Assemble
+			asCmd := exec.Command("as", "-o", testOFile, testSFile)
+			if output, err := asCmd.CombinedOutput(); err != nil {
+				t.Fatalf("assembler failed: %v\nOutput: %s\nAssembly:\n%s", err, output, asmContent)
+			}
+
+			// Step 4: Link
+			// On macOS, need to link with -lSystem
+			var ldCmd *exec.Cmd
+			sdkPath, _ := exec.Command("xcrun", "--show-sdk-path").Output()
+			sdkPathStr := strings.TrimSpace(string(sdkPath))
+			if sdkPathStr != "" {
+				ldCmd = exec.Command("ld", "-o", testExe, testOFile, "-lSystem", "-L"+sdkPathStr+"/usr/lib")
+			} else {
+				ldCmd = exec.Command("ld", "-o", testExe, testOFile, "-lc")
+			}
+			if output, err := ldCmd.CombinedOutput(); err != nil {
+				t.Fatalf("linker failed: %v\nOutput: %s", err, output)
+			}
+
+			// Step 5: Run and check exit code
+			runCmd := exec.Command(testExe)
+			runCmd.Run() // Ignore error, we want exit code
+			exitCode := runCmd.ProcessState.ExitCode()
+
+			if exitCode != tc.ExpectedExit {
+				t.Errorf("expected exit code %d, got %d\nAssembly:\n%s", tc.ExpectedExit, exitCode, asmContent)
+			}
+		})
+	}
+}
+
+// convertToMacOS converts ELF-style assembly to macOS format
+func convertToMacOS(asm string) string {
+	lines := strings.Split(asm, "\n")
+	var result []string
+
+	for _, line := range lines {
+		// Skip .type and .size directives (not supported on macOS)
+		if strings.HasPrefix(strings.TrimSpace(line), ".type") ||
+			strings.HasPrefix(strings.TrimSpace(line), ".size") {
+			continue
+		}
+
+		// Add underscore prefix to global symbols
+		if strings.Contains(line, ".global\t") {
+			// Extract symbol name and add underscore
+			parts := strings.Split(line, "\t")
+			if len(parts) >= 2 {
+				sym := parts[len(parts)-1]
+				if !strings.HasPrefix(sym, ".") && !strings.HasPrefix(sym, "_") { // Don't prefix local labels or already prefixed
+					// Replace only the symbol part, not the directive
+					line = "\t.global\t_" + sym
+				}
+			}
+		}
+
+		// Add underscore prefix to function labels (lines like "main:")
+		trimmed := strings.TrimSpace(line)
+		if strings.HasSuffix(trimmed, ":") && !strings.HasPrefix(trimmed, ".") {
+			// This is a label - add underscore if it's a function
+			label := strings.TrimSuffix(trimmed, ":")
+			if !strings.HasPrefix(label, ".L") { // Not a local label
+				line = "_" + trimmed
+			}
+		}
+
+		// Convert bl calls to external functions
+		if strings.Contains(line, "\tbl\t") {
+			parts := strings.Split(line, "\tbl\t")
+			if len(parts) == 2 {
+				sym := strings.TrimSpace(parts[1])
+				if !strings.HasPrefix(sym, "_") && !strings.HasPrefix(sym, ".") {
+					line = parts[0] + "\tbl\t_" + sym
+				}
+			}
+		}
+
+		// Handle adrp/add @PAGE/@PAGEOFF for macOS
+		if strings.Contains(line, "adrp") && strings.Contains(line, ".Lstr") {
+			// adrp x0, .Lstr0 -> adrp x0, .Lstr0@PAGE
+			parts := strings.Fields(line)
+			if len(parts) >= 3 && strings.HasPrefix(parts[2], ".Lstr") {
+				line = parts[0] + "\t" + parts[1] + ", " + parts[2] + "@PAGE"
+			}
+		}
+		if strings.Contains(line, "add") && strings.Contains(line, "#0") && strings.Contains(line, ".Lstr") {
+			// add x0, x0, #0 after adrp for .Lstr should use @PAGEOFF
+			// This is a simplified detection - look for pattern
+		}
+
+		result = append(result, line)
+	}
+
+	return strings.Join(result, "\n")
+}
+
 // TestPreprocessedFileExtension tests that .i files are not preprocessed
 func TestPreprocessedFileExtension(t *testing.T) {
 	tmpDir := t.TempDir()
