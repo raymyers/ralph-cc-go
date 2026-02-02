@@ -19,7 +19,20 @@ func TestDebugFlagsExist(t *testing.T) {
 	var out, errOut bytes.Buffer
 	cmd := newRootCmd(&out, &errOut)
 
-	expectedFlags := []string{"dparse", "dc", "dasm", "dclight", "dcsharpminor", "dcminor", "drtl", "dltl", "dmach"}
+	expectedFlags := []string{"dparse", "dc", "dasm", "dclight", "dcsharpminor", "dcminor", "drtl", "dltl", "dmach", "dpp"}
+	for _, flagName := range expectedFlags {
+		flag := cmd.Flags().Lookup(flagName)
+		if flag == nil {
+			t.Errorf("expected flag --%s to exist", flagName)
+		}
+	}
+}
+
+func TestPreprocessorFlagsExist(t *testing.T) {
+	var out, errOut bytes.Buffer
+	cmd := newRootCmd(&out, &errOut)
+
+	expectedFlags := []string{"include", "isystem", "define", "undefine", "preprocess", "external-cpp"}
 	for _, flagName := range expectedFlags {
 		flag := cmd.Flags().Lookup(flagName)
 		if flag == nil {
@@ -771,6 +784,161 @@ func resetDebugFlags() {
 	dRTL = false
 	dLTL = false
 	dMach = false
+	dPP = false
+	preprocessOnly = false
+	useExternalPP = false
+	includePaths = nil
+	systemPaths = nil
+	defineFlags = nil
+	undefineFlags = nil
+}
+
+func TestPreprocessOnlyFlag(t *testing.T) {
+	// Create a temporary test file with macro
+	tmpDir := t.TempDir()
+	testFile := filepath.Join(tmpDir, "test.c")
+	content := `#define X 42
+int main() { return X; }`
+	if err := os.WriteFile(testFile, []byte(content), 0644); err != nil {
+		t.Fatalf("failed to write test file: %v", err)
+	}
+
+	resetDebugFlags()
+
+	var out, errOut bytes.Buffer
+	cmd := newRootCmd(&out, &errOut)
+	cmd.SetArgs([]string{"-E", testFile})
+	err := cmd.Execute()
+
+	if err != nil {
+		t.Errorf("expected no error for -E, got %v", err)
+	}
+
+	output := out.String()
+	// Check that macro was expanded
+	if !strings.Contains(output, "42") {
+		t.Errorf("expected output to contain '42', got %q", output)
+	}
+	// Check that #define is not in output (it was processed)
+	if strings.Contains(output, "#define") {
+		t.Errorf("expected #define to be removed, got %q", output)
+	}
+}
+
+func TestDefineFlagWithPreprocess(t *testing.T) {
+	tmpDir := t.TempDir()
+	testFile := filepath.Join(tmpDir, "test.c")
+	content := `int main() { return VALUE; }`
+	if err := os.WriteFile(testFile, []byte(content), 0644); err != nil {
+		t.Fatalf("failed to write test file: %v", err)
+	}
+
+	resetDebugFlags()
+
+	var out, errOut bytes.Buffer
+	cmd := newRootCmd(&out, &errOut)
+	cmd.SetArgs([]string{"-E", "-D", "VALUE=99", testFile})
+	err := cmd.Execute()
+
+	if err != nil {
+		t.Errorf("expected no error, got %v", err)
+	}
+
+	output := out.String()
+	if !strings.Contains(output, "99") {
+		t.Errorf("expected output to contain '99', got %q", output)
+	}
+}
+
+func TestConditionalCompilation(t *testing.T) {
+	tmpDir := t.TempDir()
+	testFile := filepath.Join(tmpDir, "test.c")
+	content := `#ifdef DEBUG
+int debug_var = 1;
+#endif
+int main() { return 0; }`
+	if err := os.WriteFile(testFile, []byte(content), 0644); err != nil {
+		t.Fatalf("failed to write test file: %v", err)
+	}
+
+	// Test without DEBUG defined
+	resetDebugFlags()
+	var out1, errOut1 bytes.Buffer
+	cmd1 := newRootCmd(&out1, &errOut1)
+	cmd1.SetArgs([]string{"-E", testFile})
+	if err := cmd1.Execute(); err != nil {
+		t.Errorf("expected no error, got %v", err)
+	}
+	if strings.Contains(out1.String(), "debug_var") {
+		t.Errorf("expected debug_var to be excluded without DEBUG, got %q", out1.String())
+	}
+
+	// Test with DEBUG defined
+	resetDebugFlags()
+	var out2, errOut2 bytes.Buffer
+	cmd2 := newRootCmd(&out2, &errOut2)
+	cmd2.SetArgs([]string{"-E", "-D", "DEBUG", testFile})
+	if err := cmd2.Execute(); err != nil {
+		t.Errorf("expected no error, got %v", err)
+	}
+	if !strings.Contains(out2.String(), "debug_var") {
+		t.Errorf("expected debug_var to be included with DEBUG, got %q", out2.String())
+	}
+}
+
+func TestDPPFlag(t *testing.T) {
+	tmpDir := t.TempDir()
+	testFile := filepath.Join(tmpDir, "test.c")
+	content := `#define X 10
+int main() { return X; }`
+	if err := os.WriteFile(testFile, []byte(content), 0644); err != nil {
+		t.Fatalf("failed to write test file: %v", err)
+	}
+
+	resetDebugFlags()
+
+	var out, errOut bytes.Buffer
+	cmd := newRootCmd(&out, &errOut)
+	cmd.SetArgs([]string{"--dpp", testFile})
+	err := cmd.Execute()
+
+	if err != nil {
+		t.Errorf("expected no error for -dpp, got %v", err)
+	}
+
+	// Check that .i file was created
+	outputFile := filepath.Join(tmpDir, "test.i")
+	if _, err := os.Stat(outputFile); os.IsNotExist(err) {
+		t.Errorf("expected output file %s to be created", outputFile)
+	}
+
+	// Check content
+	fileContent, err := os.ReadFile(outputFile)
+	if err != nil {
+		t.Fatalf("failed to read output file: %v", err)
+	}
+	if !strings.Contains(string(fileContent), "10") {
+		t.Errorf("expected output to contain '10', got %q", string(fileContent))
+	}
+}
+
+func TestPreprocessedOutputFilename(t *testing.T) {
+	tests := []struct {
+		input    string
+		expected string
+	}{
+		{"test.c", "test.i"},
+		{"path/to/file.c", "path/to/file.i"},
+		{"/absolute/path.c", "/absolute/path.i"},
+		{"no_extension", "no_extension.i"},
+	}
+
+	for _, tc := range tests {
+		result := preprocessedOutputFilename(tc.input)
+		if result != tc.expected {
+			t.Errorf("preprocessedOutputFilename(%q) = %q, want %q", tc.input, result, tc.expected)
+		}
+	}
 }
 
 func TestNormalizeFlags(t *testing.T) {
@@ -811,8 +979,8 @@ func TestNormalizeFlags(t *testing.T) {
 		},
 		{
 			name:     "all debug flags",
-			input:    []string{"-dparse", "-dc", "-dasm", "-dclight", "-dcsharpminor", "-dcminor", "-drtl", "-dltl", "-dmach"},
-			expected: []string{"--dparse", "--dc", "--dasm", "--dclight", "--dcsharpminor", "--dcminor", "--drtl", "--dltl", "--dmach"},
+			input:    []string{"-dparse", "-dc", "-dasm", "-dclight", "-dcsharpminor", "-dcminor", "-drtl", "-dltl", "-dmach", "-dpp"},
+			expected: []string{"--dparse", "--dc", "--dasm", "--dclight", "--dcsharpminor", "--dcminor", "--drtl", "--dltl", "--dmach", "--dpp"},
 		},
 	}
 

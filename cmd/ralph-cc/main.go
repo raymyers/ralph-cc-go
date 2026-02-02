@@ -43,10 +43,18 @@ var (
 	dRTL         bool
 	dLTL         bool
 	dMach        bool
+	dPP          bool // Debug preprocessor
 )
 
 // Preprocessor options
-var includePaths []string
+var (
+	includePaths   []string
+	systemPaths    []string
+	defineFlags    []string
+	undefineFlags  []string
+	preprocessOnly bool // -E flag
+	useExternalPP  bool // Use external preprocessor
+)
 
 // debugFlagInfo holds metadata for a debug flag
 type debugFlagInfo struct {
@@ -89,7 +97,7 @@ func run() int {
 }
 
 // debugFlagNames lists all debug flags that should accept single-dash style (CompCert compatibility)
-var debugFlagNames = []string{"dparse", "dc", "dasm", "dclight", "dcsharpminor", "dcminor", "drtl", "dltl", "dmach"}
+var debugFlagNames = []string{"dparse", "dc", "dasm", "dclight", "dcsharpminor", "dcminor", "drtl", "dltl", "dmach", "dpp"}
 
 // normalizeFlags converts CompCert-style single-dash flags like -dparse to --dparse
 func normalizeFlags(args []string) []string {
@@ -131,6 +139,16 @@ CompCert design with the goal of equivalent output on each IR.`,
 				return nil
 			}
 			filename := args[0]
+
+			// Handle -E: preprocess only
+			if preprocessOnly {
+				return doPreprocessOnly(filename, out, errOut)
+			}
+
+			// Handle -dpp: debug preprocessor output
+			if dPP {
+				return doPreprocessDebug(filename, out, errOut)
+			}
 
 			// Handle -dparse: parse and dump the AST
 			if dParse {
@@ -189,21 +207,47 @@ CompCert design with the goal of equivalent output on each IR.`,
 	rootCmd.Flags().BoolVarP(&dRTL, "drtl", "", false, "Dump RTL")
 	rootCmd.Flags().BoolVarP(&dLTL, "dltl", "", false, "Dump LTL")
 	rootCmd.Flags().BoolVarP(&dMach, "dmach", "", false, "Dump Mach")
+	rootCmd.Flags().BoolVarP(&dPP, "dpp", "", false, "Debug preprocessor operation")
 
 	// Add preprocessor flags
 	rootCmd.Flags().StringArrayVarP(&includePaths, "include", "I", nil, "Add directory to include search path")
+	rootCmd.Flags().StringArrayVar(&systemPaths, "isystem", nil, "Add directory to system include search path")
+	rootCmd.Flags().StringArrayVarP(&defineFlags, "define", "D", nil, "Define macro (NAME or NAME=VALUE)")
+	rootCmd.Flags().StringArrayVarP(&undefineFlags, "undefine", "U", nil, "Undefine macro")
+	rootCmd.Flags().BoolVarP(&preprocessOnly, "preprocess", "E", false, "Preprocess only, output to stdout")
+	rootCmd.Flags().BoolVar(&useExternalPP, "external-cpp", false, "Use external C preprocessor instead of internal")
 
 	return rootCmd
 }
 
+// buildPreprocessorOptions creates preproc.Options from CLI flags
+func buildPreprocessorOptions() *preproc.Options {
+	opts := &preproc.Options{
+		IncludePaths: includePaths,
+		SystemPaths:  systemPaths,
+		Defines:      make(map[string]string),
+		Undefines:    undefineFlags,
+		UseExternal:  useExternalPP,
+	}
+
+	// Parse -D flags (NAME or NAME=VALUE)
+	for _, d := range defineFlags {
+		if idx := strings.Index(d, "="); idx >= 0 {
+			opts.Defines[d[:idx]] = d[idx+1:]
+		} else {
+			opts.Defines[d] = ""
+		}
+	}
+
+	return opts
+}
+
 // readAndPreprocess reads a C file and optionally preprocesses it.
-// It uses the system's C preprocessor for .c files to handle #include directives.
+// It uses our internal preprocessor for .c files to handle #include directives.
 // Files with .i or .p extensions are assumed already preprocessed.
 func readAndPreprocess(filename string, errOut io.Writer) (string, error) {
 	if preproc.NeedsPreprocessing(filename) {
-		opts := &preproc.Options{
-			IncludePaths: includePaths,
-		}
+		opts := buildPreprocessorOptions()
 		content, err := preproc.Preprocess(filename, opts)
 		if err != nil {
 			fmt.Fprintf(errOut, "ralph-cc: preprocessing error: %v\n", err)
@@ -219,6 +263,61 @@ func readAndPreprocess(filename string, errOut io.Writer) (string, error) {
 		return "", err
 	}
 	return string(content), nil
+}
+
+// doPreprocessOnly preprocesses and outputs to stdout (-E flag)
+func doPreprocessOnly(filename string, out, errOut io.Writer) error {
+	opts := buildPreprocessorOptions()
+	opts.LineMarkers = true // Include line markers like traditional cpp
+
+	content, err := preproc.Preprocess(filename, opts)
+	if err != nil {
+		fmt.Fprintf(errOut, "ralph-cc: preprocessing error: %v\n", err)
+		return err
+	}
+
+	fmt.Fprint(out, content)
+	return nil
+}
+
+// doPreprocessDebug preprocesses with debug info and outputs to .i file (-dpp flag)
+func doPreprocessDebug(filename string, out, errOut io.Writer) error {
+	opts := buildPreprocessorOptions()
+	opts.LineMarkers = true
+
+	content, err := preproc.Preprocess(filename, opts)
+	if err != nil {
+		fmt.Fprintf(errOut, "ralph-cc: preprocessing error: %v\n", err)
+		return err
+	}
+
+	// Compute output filename: input.c -> input.i
+	outputFilename := preprocessedOutputFilename(filename)
+
+	// Create output file
+	outFile, err := os.Create(outputFilename)
+	if err != nil {
+		fmt.Fprintf(errOut, "ralph-cc: error creating %s: %v\n", outputFilename, err)
+		return err
+	}
+	defer outFile.Close()
+
+	// Write to file
+	outFile.WriteString(content)
+
+	// Also print to stdout
+	fmt.Fprint(out, content)
+
+	return nil
+}
+
+// preprocessedOutputFilename returns the output filename for -dpp
+func preprocessedOutputFilename(filename string) string {
+	ext := ".c"
+	if strings.HasSuffix(filename, ext) {
+		return filename[:len(filename)-len(ext)] + ".i"
+	}
+	return filename + ".i"
 }
 
 // parseFile preprocesses and parses a C file, returning the AST

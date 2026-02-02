@@ -273,7 +273,7 @@ Created `pkg/cpp/preprocess.go` with main `Preprocessor` driver that:
 
 **Goal:** Generate preprocessed output with line markers
 
-**Status:** TODO
+**Status:** DONE
 
 ### Context
 
@@ -284,20 +284,28 @@ Output should be suitable for our parser:
 
 ### Tasks
 
-- [ ] Create `pkg/cpp/output.go` for output generation
-- [ ] Generate `#line` directives at file boundaries
-- [ ] Generate `#line` directives after macro expansion (optional)
-- [ ] Preserve original line structure where possible
-- [ ] Handle whitespace/newline preservation
-- [ ] Support `-E` style output (for debugging)
-- [ ] Support direct token stream output (for integration)
-- [ ] Add output format tests
+- [x] Create `pkg/cpp/output.go` for output generation (implemented in preprocess.go)
+- [x] Generate `#line` directives at file boundaries
+- [x] Generate `#line` directives after macro expansion (optional)
+- [x] Preserve original line structure where possible
+- [x] Handle whitespace/newline preservation
+- [x] Support `-E` style output (for debugging)
+- [x] Support direct token stream output (for integration)
+- [x] Add output format tests
+
+### Implementation Notes
+
+Output generation was integrated directly into `preprocess.go`:
+- `TokensToString()` in `lexer.go` converts tokens back to text
+- Line markers generated via `opts.LineMarkers` option
+- `-E` flag implemented in CLI for preprocessed output to stdout
+- Line structure preserved through newline token handling
 
 ## Milestone 9: Main Preprocessor Driver
 
 **Goal:** Tie all components together into a usable preprocessor
 
-**Status:** TODO
+**Status:** DONE
 
 ### Context
 
@@ -305,25 +313,34 @@ The preprocessor driver coordinates all phases and provides the public API.
 
 ### Tasks
 
-- [ ] Create `pkg/cpp/preprocess.go` as main driver
-- [ ] Implement `Preprocess(filename, opts) (string, error)`
-- [ ] Implement `PreprocessString(source, opts) (string, error)`
-- [ ] Process directives in order:
+- [x] Create `pkg/cpp/preprocess.go` as main driver
+- [x] Implement `Preprocess(filename, opts) (string, error)` - `PreprocessFile()`
+- [x] Implement `PreprocessString(source, opts) (string, error)`
+- [x] Process directives in order:
   1. Read lines
   2. Handle line continuation
   3. Tokenize
   4. Process directives
   5. Expand macros
   6. Output result
-- [ ] Integrate include path resolution
-- [ ] Handle errors with good diagnostics
-- [ ] Add integration tests
+- [x] Integrate include path resolution
+- [x] Handle errors with good diagnostics
+- [x] Add integration tests
+
+### Implementation Notes
+
+Already implemented in previous milestones (see Milestone 7 notes).
+The `Preprocessor` type in `pkg/cpp/preprocess.go` provides:
+- `PreprocessFile(filename)` - main entry point
+- `PreprocessString(source, filename)` - for in-memory preprocessing
+- Full directive processing pipeline
+- Error messages with file/line locations
 
 ## Milestone 10: CLI Integration
 
 **Goal:** Wire preprocessor into ralph-cc CLI
 
-**Status:** TODO
+**Status:** DONE
 
 ### Context
 
@@ -331,15 +348,39 @@ Replace the external `cc -E` call with our internal preprocessor.
 
 ### Tasks
 
-- [ ] Update `pkg/preproc/preproc.go` to use internal preprocessor
-- [ ] Add `-E` flag to output preprocessed source only
-- [ ] Add `-dpp` flag to debug preprocessor operation
-- [ ] Maintain backward compatibility with external preprocessor (fallback?)
-- [ ] Update `-I`, `-D`, `-U` flag handling
-- [ ] Add `-isystem` flag support
-- [ ] Test with existing test cases
-- [ ] Test with system headers (stdio.h, stdlib.h, etc.)
-- [ ] Update docs/INCLUDE.md with new capabilities
+- [x] Update `pkg/preproc/preproc.go` to use internal preprocessor
+- [x] Add `-E` flag to output preprocessed source only
+- [x] Add `-dpp` flag to debug preprocessor operation
+- [x] Maintain backward compatibility with external preprocessor (`--external-cpp` flag)
+- [x] Update `-I`, `-D`, `-U` flag handling
+- [x] Add `-isystem` flag support
+- [x] Test with existing test cases
+- [ ] Test with system headers (stdio.h, stdlib.h, etc.) - deferred to Milestone 11
+- [ ] Update docs/INCLUDE.md with new capabilities - deferred to Milestone 11
+
+### Implementation Notes
+
+Updated `pkg/preproc/preproc.go` to:
+- Use internal `pkg/cpp` preprocessor by default
+- Support `UseExternal` option to fall back to system `cc -E`
+- Support `LineMarkers` option for `-E` style output
+
+Added CLI flags:
+- `-E` / `--preprocess`: Output preprocessed source to stdout
+- `-dpp`: Debug preprocessor, write to .i file and stdout
+- `-D NAME` / `-D NAME=VALUE`: Define macros
+- `-U NAME`: Undefine macros
+- `-I dir`: Add user include path
+- `--isystem dir`: Add system include path
+- `--external-cpp`: Use external preprocessor instead of internal
+
+Tests added in `main_test.go`:
+- `TestPreprocessOnlyFlag`
+- `TestDefineFlagWithPreprocess`
+- `TestConditionalCompilation`
+- `TestDPPFlag`
+- `TestPreprocessedOutputFilename`
+- `TestPreprocessorFlagsExist`
 
 ## Milestone 11: System Header Compatibility
 

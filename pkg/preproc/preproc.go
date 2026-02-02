@@ -1,6 +1,6 @@
-// Package preproc handles C preprocessing using an external preprocessor.
-// It follows CompCert's approach of delegating preprocessing to the system's
-// C preprocessor (cc -E) rather than implementing preprocessing directly.
+// Package preproc handles C preprocessing.
+// It provides both an internal preprocessor implementation and fallback
+// to an external system preprocessor (cc -E).
 package preproc
 
 import (
@@ -10,18 +10,58 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
+
+	"github.com/raymyers/ralph-cc/pkg/cpp"
 )
 
 // Options configures the preprocessing step
 type Options struct {
 	IncludePaths []string          // -I directories
+	SystemPaths  []string          // -isystem directories
 	Defines      map[string]string // -D macros (name -> value, empty string for simple define)
 	Undefines    []string          // -U macros
+	UseExternal  bool              // Force use of external preprocessor
+	LineMarkers  bool              // Generate #line markers
 }
 
 // Preprocess runs the C preprocessor on the given source file and returns
 // the preprocessed source code as a string.
+// By default, it uses the internal preprocessor. Set UseExternal option
+// to force use of the system preprocessor.
 func Preprocess(filename string, opts *Options) (string, error) {
+	if opts != nil && opts.UseExternal {
+		return preprocessExternal(filename, opts)
+	}
+	return preprocessInternal(filename, opts)
+}
+
+// preprocessInternal uses our internal pkg/cpp preprocessor
+func preprocessInternal(filename string, opts *Options) (string, error) {
+	ppOpts := cpp.PreprocessorOptions{
+		LineMarkers: opts != nil && opts.LineMarkers,
+	}
+
+	if opts != nil {
+		ppOpts.IncludePaths = opts.IncludePaths
+		ppOpts.SystemPaths = opts.SystemPaths
+		ppOpts.Undefines = opts.Undefines
+
+		// Convert defines map to slice format expected by cpp package
+		for name, value := range opts.Defines {
+			if value == "" {
+				ppOpts.Defines = append(ppOpts.Defines, name)
+			} else {
+				ppOpts.Defines = append(ppOpts.Defines, name+"="+value)
+			}
+		}
+	}
+
+	pp := cpp.NewPreprocessor(ppOpts)
+	return pp.PreprocessFile(filename)
+}
+
+// preprocessExternal uses the system C preprocessor (cc -E)
+func preprocessExternal(filename string, opts *Options) (string, error) {
 	// Build the command arguments
 	args := []string{"-E"} // Preprocess only
 
@@ -29,6 +69,10 @@ func Preprocess(filename string, opts *Options) (string, error) {
 		// Add include paths
 		for _, path := range opts.IncludePaths {
 			args = append(args, "-I"+path)
+		}
+		// Add system include paths
+		for _, path := range opts.SystemPaths {
+			args = append(args, "-isystem", path)
 		}
 		// Add defines
 		for name, value := range opts.Defines {
@@ -48,12 +92,12 @@ func Preprocess(filename string, opts *Options) (string, error) {
 	args = append(args, filename)
 
 	// Find the preprocessor command
-	cpp := findPreprocessor()
-	if cpp == "" {
+	cppCmd := findPreprocessor()
+	if cppCmd == "" {
 		return "", fmt.Errorf("no C preprocessor found (tried: cc, gcc, clang)")
 	}
 
-	cmd := exec.Command(cpp, args...)
+	cmd := exec.Command(cppCmd, args...)
 
 	// Capture stdout and stderr
 	var stdout, stderr bytes.Buffer

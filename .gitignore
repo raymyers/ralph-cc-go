@@ -12,3 +12,6 @@ coverage/
 *.mach
 *.s
 *.json
+
+# Preprocessed output
+*.i
