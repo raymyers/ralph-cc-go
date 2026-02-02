@@ -16,10 +16,11 @@
 
 The following parser limitations prevent compiling programs with `#include <stdio.h>`:
 
-[ ] Parser: Support `restrict` keyword (C99)
+[x] Parser: Support `restrict` keyword (C99)
     - System headers use `restrict` in function parameters (e.g., `printf(const char * restrict, ...)`)
-    - Should be ignored/treated as no-op like `register`
-    - ~71 parser errors from restrict alone
+    - Now properly skipped as no-op type qualifier after pointers
+    - Updated all pointer parsing locations: return types, parameters, struct fields, typedefs, declarations, for-loops
+    - Added test cases in testdata/parse.yaml
 
 [ ] Parser: Support compound type specifiers
     - `signed char`, `unsigned char` - fails with "expected typedef name, got char"

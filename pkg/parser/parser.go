@@ -220,10 +220,14 @@ func (p *Parser) ParseDefinition() cabs.Definition {
 		p.nextToken()
 	}
 
-	// Handle pointer in return type
+	// Handle pointer in return type with optional qualifiers
 	for p.curTokenIs(lexer.TokenStar) {
 		returnType = returnType + "*"
 		p.nextToken()
+		// Skip type qualifiers after pointer (const, volatile, restrict)
+		for p.isTypeQualifier() {
+			p.nextToken()
+		}
 	}
 
 	if !p.curTokenIs(lexer.TokenIdent) {
@@ -311,10 +315,14 @@ func (p *Parser) parseStructBody(name string, isUnion bool) cabs.Definition {
 		typeSpec := p.curToken.Literal
 		p.nextToken()
 
-		// Handle pointer types
+		// Handle pointer types with optional qualifiers
 		for p.curTokenIs(lexer.TokenStar) {
 			typeSpec = typeSpec + "*"
 			p.nextToken()
+			// Skip type qualifiers after pointer (const, volatile, restrict)
+			for p.isTypeQualifier() {
+				p.nextToken()
+			}
 		}
 
 		// Field name
@@ -475,10 +483,14 @@ func (p *Parser) parseParameter() *cabs.Param {
 		p.nextToken()
 	}
 
-	// Handle pointer types
+	// Handle pointer types with optional qualifiers (e.g., int * const restrict ptr)
 	for p.curTokenIs(lexer.TokenStar) {
 		typeSpec = typeSpec + "*"
 		p.nextToken()
+		// Skip type qualifiers after pointer (const, volatile, restrict)
+		for p.isTypeQualifier() {
+			p.nextToken()
+		}
 	}
 
 	// Parameter name is optional in declarations, but we require it for now
@@ -516,10 +528,14 @@ func (p *Parser) parseTypedef() cabs.Definition {
 	typeSpec := p.curToken.Literal
 	p.nextToken()
 
-	// Handle pointer types
+	// Handle pointer types with optional qualifiers
 	for p.curTokenIs(lexer.TokenStar) {
 		typeSpec = typeSpec + "*"
 		p.nextToken()
+		// Skip type qualifiers after pointer (const, volatile, restrict)
+		for p.isTypeQualifier() {
+			p.nextToken()
+		}
 	}
 
 	if !p.curTokenIs(lexer.TokenIdent) {
@@ -739,10 +755,14 @@ func (p *Parser) parseDeclarationStatement() cabs.Stmt {
 			})
 		} else {
 			// Regular declarator: pointer and/or identifier
-			// Skip pointer declarators (*)
+			// Skip pointer declarators (*) with optional qualifiers
 			for p.curTokenIs(lexer.TokenStar) {
 				typeSpec = typeSpec + "*"
 				p.nextToken()
+				// Skip type qualifiers after pointer (const, volatile, restrict)
+				for p.isTypeQualifier() {
+					p.nextToken()
+				}
 			}
 
 			// Expect identifier
@@ -829,10 +849,14 @@ func (p *Parser) parseFunctionPointerParams() string {
 			paramType = p.curToken.Literal
 			p.nextToken()
 		}
-		// Handle pointers
+		// Handle pointers with optional qualifiers
 		for p.curTokenIs(lexer.TokenStar) {
 			paramType = paramType + "*"
 			p.nextToken()
+			// Skip type qualifiers after pointer (const, volatile, restrict)
+			for p.isTypeQualifier() {
+				p.nextToken()
+			}
 		}
 		// Skip parameter name if present
 		if p.curTokenIs(lexer.TokenIdent) {
@@ -1047,10 +1071,14 @@ func (p *Parser) parseForDeclaration() []cabs.Decl {
 	for {
 		typeSpec := baseType
 
-		// Skip pointer declarators (*)
+		// Skip pointer declarators (*) with optional qualifiers
 		for p.curTokenIs(lexer.TokenStar) {
 			typeSpec = typeSpec + "*"
 			p.nextToken()
+			// Skip type qualifiers after pointer (const, volatile, restrict)
+			for p.isTypeQualifier() {
+				p.nextToken()
+			}
 		}
 
 		// Expect identifier

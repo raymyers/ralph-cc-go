@@ -170,3 +170,42 @@ tests:
                 right:
                   kind: Constant
                   value: 4
+
+  - name: "restrict keyword in parameter"
+    input: |
+      int foo(int * restrict ptr) { return *ptr; }
+    ast:
+      kind: FunDef
+      name: foo
+      return_type: int
+      params:
+        - type: int*
+          name: ptr
+      body:
+        kind: Block
+        items:
+          - kind: Return
+            expr:
+              kind: Unary
+              op: "*"
+              expr:
+                kind: Variable
+                name: ptr
+
+  - name: "restrict with const in parameter"
+    input: |
+      int bar(const char * restrict str) { return 0; }
+    ast:
+      kind: FunDef
+      name: bar
+      return_type: int
+      params:
+        - type: char*
+          name: str
+      body:
+        kind: Block
+        items:
+          - kind: Return
+            expr:
+              kind: Constant
+              value: 0
