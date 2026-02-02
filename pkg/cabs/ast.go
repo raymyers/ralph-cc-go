@@ -319,6 +319,16 @@ type EnumDef struct {
 	Values []EnumVal
 }
 
+// VarDef represents a global/extern variable declaration
+// e.g., extern const int sys_nerr; or static int global_count = 0;
+type VarDef struct {
+	StorageClass string   // "extern", "static", or "" for none
+	TypeSpec     string   // the type specifier
+	Name         string   // variable name
+	ArrayDims    []Expr   // array dimensions: nil for non-array, [nil] for int arr[], [expr] for int arr[n]
+	Initializer  Expr     // nil if no initializer
+}
+
 // Marker methods for interface implementation
 func (Constant) implCabsNode() {}
 func (Constant) implCabsExpr() {}
@@ -409,6 +419,9 @@ func (UnionDef) implDefinition() {}
 
 func (EnumDef) implCabsNode()    {}
 func (EnumDef) implDefinition() {}
+
+func (VarDef) implCabsNode()    {}
+func (VarDef) implDefinition() {}
 
 // Program represents a complete translation unit (file)
 type Program struct {

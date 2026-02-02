@@ -42,6 +42,8 @@ func (p *Printer) printDefinition(def Definition) {
 		p.printUnionDef(d)
 	case EnumDef:
 		p.printEnumDef(d)
+	case VarDef:
+		p.printVarDef(d)
 	default:
 		fmt.Fprintf(p.w, "/* unknown definition %T */\n", def)
 	}
@@ -171,6 +173,25 @@ func (p *Printer) printEnumDef(e EnumDef) {
 	}
 	p.indent--
 	fmt.Fprintln(p.w, "};")
+}
+
+func (p *Printer) printVarDef(v VarDef) {
+	if v.StorageClass != "" {
+		fmt.Fprintf(p.w, "%s ", v.StorageClass)
+	}
+	fmt.Fprintf(p.w, "%s %s", v.TypeSpec, v.Name)
+	for _, dim := range v.ArrayDims {
+		fmt.Fprint(p.w, "[")
+		if dim != nil {
+			p.printExpr(dim)
+		}
+		fmt.Fprint(p.w, "]")
+	}
+	if v.Initializer != nil {
+		fmt.Fprint(p.w, " = ")
+		p.printExpr(v.Initializer)
+	}
+	fmt.Fprintln(p.w, ";")
 }
 
 func (p *Printer) printBlock(b *Block) {

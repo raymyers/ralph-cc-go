@@ -3382,3 +3382,157 @@ func TestAttributeSkipping(t *testing.T) {
 		})
 	}
 }
+
+
+func TestGlobalVariableDeclaration(t *testing.T) {
+	tests := []struct {
+		name         string
+		input        string
+		storageClass string
+		typeSpec     string
+		varName      string
+		hasArray     bool
+		hasInit      bool
+	}{
+		{
+			name:         "extern int variable",
+			input:        "extern int sys_nerr;",
+			storageClass: "extern",
+			typeSpec:     "int",
+			varName:      "sys_nerr",
+			hasArray:     false,
+			hasInit:      false,
+		},
+		{
+			name:         "extern const int variable",
+			input:        "extern const int sys_nerr;",
+			storageClass: "extern",
+			typeSpec:     "int",
+			varName:      "sys_nerr",
+			hasArray:     false,
+			hasInit:      false,
+		},
+		{
+			name:         "extern pointer variable",
+			input:        "extern const char *const sys_errlist[];",
+			storageClass: "extern",
+			typeSpec:     "char*",
+			varName:      "sys_errlist",
+			hasArray:     true,
+			hasInit:      false,
+		},
+		{
+			name:         "static variable with initializer",
+			input:        "static int global_count = 0;",
+			storageClass: "static",
+			typeSpec:     "int",
+			varName:      "global_count",
+			hasArray:     false,
+			hasInit:      true,
+		},
+		{
+			name:         "simple global variable",
+			input:        "int counter;",
+			storageClass: "",
+			typeSpec:     "int",
+			varName:      "counter",
+			hasArray:     false,
+			hasInit:      false,
+		},
+		{
+			name:         "global array with size",
+			input:        "int arr[10];",
+			storageClass: "",
+			typeSpec:     "int",
+			varName:      "arr",
+			hasArray:     true,
+			hasInit:      false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			l := lexer.New(tt.input)
+			p := New(l)
+			def := p.ParseDefinition()
+
+			if len(p.Errors()) > 0 {
+				t.Fatalf("parser errors: %v", p.Errors())
+			}
+
+			varDef, ok := def.(cabs.VarDef)
+			if !ok {
+				t.Fatalf("expected VarDef, got %T", def)
+			}
+
+			if varDef.StorageClass != tt.storageClass {
+				t.Errorf("StorageClass: expected %q, got %q", tt.storageClass, varDef.StorageClass)
+			}
+
+			if varDef.TypeSpec != tt.typeSpec {
+				t.Errorf("TypeSpec: expected %q, got %q", tt.typeSpec, varDef.TypeSpec)
+			}
+
+			if varDef.Name != tt.varName {
+				t.Errorf("Name: expected %q, got %q", tt.varName, varDef.Name)
+			}
+
+			hasArray := len(varDef.ArrayDims) > 0
+			if hasArray != tt.hasArray {
+				t.Errorf("hasArray: expected %v, got %v", tt.hasArray, hasArray)
+			}
+
+			hasInit := varDef.Initializer != nil
+			if hasInit != tt.hasInit {
+				t.Errorf("hasInit: expected %v, got %v", tt.hasInit, hasInit)
+			}
+		})
+	}
+}
+
+func TestTypedefWithArrayDimension(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    string
+		typeName string
+		typeSpec string
+	}{
+		{
+			name:     "fixed size array typedef",
+			input:    "typedef unsigned char uuid_t[16];",
+			typeName: "uuid_t",
+			typeSpec: "unsigned char[16]",
+		},
+		{
+			name:     "char array typedef",
+			input:    "typedef char uuid_string_t[37];",
+			typeName: "uuid_string_t",
+			typeSpec: "char[37]",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			l := lexer.New(tt.input)
+			p := New(l)
+			def := p.ParseDefinition()
+
+			if len(p.Errors()) > 0 {
+				t.Fatalf("parser errors: %v", p.Errors())
+			}
+
+			typedefDef, ok := def.(cabs.TypedefDef)
+			if !ok {
+				t.Fatalf("expected TypedefDef, got %T", def)
+			}
+
+			if typedefDef.Name != tt.typeName {
+				t.Errorf("Name: expected %q, got %q", tt.typeName, typedefDef.Name)
+			}
+
+			if typedefDef.TypeSpec != tt.typeSpec {
+				t.Errorf("TypeSpec: expected %q, got %q", tt.typeSpec, typedefDef.TypeSpec)
+			}
+		})
+	}
+}

@@ -164,7 +164,7 @@ func (p *Parser) isStatementStart() bool {
 	return false
 }
 
-// ParseDefinition parses a top-level definition (function, typedef, struct, union, or enum)
+// ParseDefinition parses a top-level definition (function, typedef, struct, union, enum, or variable)
 func (p *Parser) ParseDefinition() cabs.Definition {
 	// Skip leading __attribute__ and __asm (GCC extensions before declarations)
 	p.skipAttributes()
@@ -203,8 +203,19 @@ func (p *Parser) ParseDefinition() cabs.Definition {
 		return p.parseEnumDef()
 	}
 
-	// Skip storage class specifiers and function specifiers
-	for p.isStorageClassSpecifier() || p.isFunctionSpecifier() {
+	// Capture storage class specifier (extern, static, etc.)
+	storageClass := ""
+	for p.isStorageClassSpecifier() {
+		if p.curTokenIs(lexer.TokenExtern) {
+			storageClass = "extern"
+		} else if p.curTokenIs(lexer.TokenStatic) {
+			storageClass = "static"
+		}
+		p.nextToken()
+	}
+
+	// Skip function specifiers (inline, etc.)
+	for p.isFunctionSpecifier() {
 		p.nextToken()
 	}
 
@@ -221,11 +232,11 @@ func (p *Parser) ParseDefinition() cabs.Definition {
 		return nil
 	}
 
-	returnType := p.parseCompoundTypeSpecifier()
+	typeSpec := p.parseCompoundTypeSpecifier()
 
-	// Handle pointer in return type with optional qualifiers
+	// Handle pointer types with optional qualifiers
 	for p.curTokenIs(lexer.TokenStar) {
-		returnType = returnType + "*"
+		typeSpec = typeSpec + "*"
 		p.nextToken()
 		// Skip type qualifiers after pointer (const, volatile, restrict)
 		for p.isTypeQualifier() {
@@ -240,7 +251,12 @@ func (p *Parser) ParseDefinition() cabs.Definition {
 	name := p.curToken.Literal
 	p.nextToken()
 
-	// Parameter list
+	// Check if this is a variable declaration (;, =, or [) vs function declaration (()
+	if p.curTokenIs(lexer.TokenSemicolon) || p.curTokenIs(lexer.TokenAssign) || p.curTokenIs(lexer.TokenLBracket) {
+		return p.parseVarDef(storageClass, typeSpec, name)
+	}
+
+	// Parameter list for function
 	if !p.expect(lexer.TokenLParen) {
 		return nil
 	}
@@ -260,7 +276,7 @@ func (p *Parser) ParseDefinition() cabs.Definition {
 	if p.curTokenIs(lexer.TokenSemicolon) {
 		p.nextToken() // consume ';'
 		return cabs.FunDef{
-			ReturnType: returnType,
+			ReturnType: typeSpec,
 			Name:       name,
 			Params:     params,
 			Variadic:   variadic,
@@ -276,11 +292,57 @@ func (p *Parser) ParseDefinition() cabs.Definition {
 	body := p.parseBlock()
 
 	return cabs.FunDef{
-		ReturnType: returnType,
+		ReturnType: typeSpec,
 		Name:       name,
 		Params:     params,
 		Variadic:   variadic,
 		Body:       body,
+	}
+}
+
+// parseVarDef parses a global/extern variable declaration
+// Called after type and name have been parsed
+func (p *Parser) parseVarDef(storageClass, typeSpec, name string) cabs.Definition {
+	var arrayDims []cabs.Expr
+	var initializer cabs.Expr
+
+	// Handle array dimensions: int arr[], int arr[10]
+	for p.curTokenIs(lexer.TokenLBracket) {
+		p.nextToken() // consume '['
+		if p.curTokenIs(lexer.TokenRBracket) {
+			// Empty dimension: int arr[]
+			arrayDims = append(arrayDims, nil)
+		} else {
+			// Sized dimension: int arr[10]
+			dim := p.parseExpression()
+			arrayDims = append(arrayDims, dim)
+		}
+		if !p.curTokenIs(lexer.TokenRBracket) {
+			p.addError(fmt.Sprintf("expected ']' in array declaration, got %s", p.curToken.Type))
+			return nil
+		}
+		p.nextToken() // consume ']'
+	}
+
+	// Handle initializer: int x = 5;
+	if p.curTokenIs(lexer.TokenAssign) {
+		p.nextToken() // consume '='
+		initializer = p.parseExpression()
+	}
+
+	// Expect semicolon
+	if !p.curTokenIs(lexer.TokenSemicolon) {
+		p.addError(fmt.Sprintf("expected ';' after variable declaration, got %s", p.curToken.Type))
+		return nil
+	}
+	p.nextToken() // consume ';'
+
+	return cabs.VarDef{
+		StorageClass: storageClass,
+		TypeSpec:     typeSpec,
+		Name:         name,
+		ArrayDims:    arrayDims,
+		Initializer:  initializer,
 	}
 }
 
@@ -831,6 +893,26 @@ func (p *Parser) parseTypedef() cabs.Definition {
 
 	name := p.curToken.Literal
 	p.nextToken()
+
+	// Handle array dimensions in typedef: typedef unsigned char uuid_t[16];
+	for p.curTokenIs(lexer.TokenLBracket) {
+		p.nextToken() // consume '['
+		typeSpec = typeSpec + "["
+		// Parse array dimension if present
+		if !p.curTokenIs(lexer.TokenRBracket) {
+			// Collect everything until ']' as part of the array dimension
+			for !p.curTokenIs(lexer.TokenRBracket) && !p.curTokenIs(lexer.TokenEOF) {
+				typeSpec = typeSpec + p.curToken.Literal
+				p.nextToken()
+			}
+		}
+		if !p.curTokenIs(lexer.TokenRBracket) {
+			p.addError(fmt.Sprintf("expected ']' in typedef array dimension, got %s", p.curToken.Type))
+			return nil
+		}
+		typeSpec = typeSpec + "]"
+		p.nextToken() // consume ']'
+	}
 
 	if !p.expect(lexer.TokenSemicolon) {
 		return nil

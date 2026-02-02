@@ -88,10 +88,14 @@ The following parser limitations prevent compiling programs with `#include <stdi
     - Also added `skipAttributes()` call after function specifiers to handle `extern __inline __attribute__((...))`
     - Added lexer tests (TestInlineTokens) and parser tests (TestInlineKeyword)
 
-[ ] Parser: Support variable declarations without function context
+[x] Parser: Support variable declarations without function context
     - System headers have `extern const int sys_nerr;` and `extern const char *const sys_errlist[];`
-    - ~16 errors of "expected (, got ;" for extern variable declarations
-    - Parser currently expects function definition after type + name
+    - Added VarDef AST node type for global/extern variable declarations
+    - Updated ParseDefinition to detect variable declarations (;, =, or [ after name)
+    - Added parseVarDef function to handle array dimensions and initializers
+    - Updated printer to output VarDef
+    - Added TestGlobalVariableDeclaration test cases
+    - Also fixed typedef array dimensions (typedef char uuid_t[16]) while implementing
 
 [ ] Parser: Support function pointer parameters in function declarations
     - `funopen(const void *, int (*)(void *, char *, int), ...)` style
