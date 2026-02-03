@@ -193,12 +193,4 @@ The following issues prevent hello.c from running correctly after compilation:
     - Solution: Added collectExternalFunctions() to scan for undeclared function calls
     - Also fixed run.sh to handle ADRP/ADD @PAGE/@PAGEOFF for macOS assembly
 
-[x] How close is this to a usable compiler for short programs? Make a plan to determine the status rigorously. `plan/02-e2e-ralph/PLAN_USABLE.md`
-    - Created PLAN_USABLE.md with feature matrix and rigorous methodology
-    - Created testdata/e2e_runtime.yaml with 60+ executable test cases
-    - Added TestE2ERuntimeYAML test runner in integration_test.go
-    - Assessment: NOT YET USABLE - comparison operators broken
-    - What works: constants, arithmetic, variables, functions, printf
-    - What's broken: comparisons (<, >, ==) compile as ADD not CMP
-    - This breaks all control flow (if, while, for)
-    - Estimated fix: 1-2 medium complexity issues in selection/asmgen
+[ ] How close is this to a usable compiler for short programs? Make a plan to determine the status rigorously. Study and update `plan/02-e2e-ralph/PLAN_USABLE.md` with progress. This task stays open untill it's all done. If you get stuck leave notes there and bail.
