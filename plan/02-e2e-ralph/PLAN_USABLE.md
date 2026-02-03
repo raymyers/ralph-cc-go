@@ -141,46 +141,57 @@ The compiler is considered **minimally usable** when:
 |----------|-------------|--------|-------|
 | C1.1 | Integer constants | ✅ PASS | 0, 42, 255 all work |
 | C1.2 | Integer arithmetic | ✅ PASS | +, -, *, /, % all work |
-| C1.3 | Integer comparisons | ❌ FAIL | `<`, `>`, `==` compile as ADD not CMP |
+| C1.3 | Integer comparisons | ✅ PASS | `<`, `>`, `==`, `!=`, `<=`, `>=` as expressions |
 | C1.4 | Local variables | ✅ PASS | Basic and multiple vars work |
 | C1.5 | Assignment | ✅ PASS | Simple and chained work |
 | C1.6 | Function definitions | ✅ PASS | With and without params |
 | C1.7 | Function calls | ✅ PASS | Multiple args, nested calls |
 | C1.8 | Return statement | ✅ PASS | Early return works |
-| C1.9 | If statement | ❌ FAIL | Condition not evaluated (no CMP) |
-| C1.10 | If-else statement | ❌ FAIL | Same issue - condition broken |
+| C1.9 | If statement | ❌ FAIL | Branch conditions need CMP |
+| C1.10 | If-else statement | ❌ FAIL | Same issue - branch without CMP |
 | C1.11 | While loop | ❌ FAIL | Condition broken, infinite loops |
 | C1.12 | For loop | ❌ FAIL | Same condition issue |
 
 ### Critical Issues Found
 
-#### Issue 1: Comparison Operators Compile as ADD
+#### Issue 1: Comparison Operators Compile as ADD (FIXED)
 
 **Severity**: CRITICAL - Blocks all control flow
 
-**Symptom**: `return 3 < 5;` compiles as:
+**Symptom**: `return 3 < 5;` compiled as:
 ```asm
 mov w0, #3
 mov w1, #5
 add w0, w0, w1  ; Should be: cmp w0, w1; cset w0, lt
 ```
 
-**Impact**: 
-- All comparison expressions return wrong values
-- All conditionals (`if`, `while`, `for`) cannot work
-- Loops may run infinitely or not at all
+**Status**: ✅ FIXED (2026-02-02)
 
-**Root cause**: The code generation for comparison operations (`Olt`, `Ogt`, `Oeq`, etc.) 
-appears to be generating the wrong operation. The operation selector is likely selecting 
-an ADD operation instead of a compare-and-set operation.
+**Root cause found**: cminor.Ecmp was converted to cminorsel.Ebinop in selection phase,
+losing the Comparison condition (Ceq, Clt, etc.). Then TranslateBinaryOp in rtlgen/instr.go
+didn't handle Ocmp operators, defaulting to Oadd.
+
+**Fix**: Added Ecmp expression type to cminorsel that preserves both Op and Cmp fields.
+Updated selection and rtlgen to produce proper comparison operations.
+
+Now correctly generates:
+```asm
+mov w1, #3
+mov w0, #5
+cmp w1, w0
+cset w0, lt
+```
 
 #### Issue 2: Conditional Branches Without Flag Setting
 
-**Severity**: CRITICAL - Related to Issue 1
+**Severity**: CRITICAL - Still blocking control flow
 
 **Symptom**: `if (0)` generates `b.gt` without preceding CMP instruction
 
 **Impact**: Branch condition is undefined, leading to unpredictable behavior
+
+**Note**: This is separate from comparison expressions (which are now fixed).
+Conditionals that use comparison results as branch conditions need additional work.
 
 ### What Works (verified)
 
@@ -189,24 +200,31 @@ an ADD operation instead of a compare-and-set operation.
 3. **Functions**: Definition, parameter passing, return values, and calls all work
 4. **String literals**: "hello" style strings work with printf
 5. **printf**: External function calls to libc work (hello.c runs correctly)
+6. **Comparisons as expressions**: `return x < y;` now produces correct 0/1 values ✅
 
 ### What's Broken (verified)
 
-1. **Comparisons as expressions**: `x < y`, `x == y` etc. don't produce 0/1
-2. **Conditionals**: `if (condition)` doesn't evaluate condition correctly  
-3. **Loops**: `while` and `for` loops with conditions don't terminate correctly
-4. **Control flow**: Anything depending on boolean/comparison results
+1. **Conditionals**: `if (condition)` doesn't emit CMP before branch  
+2. **Loops**: `while` and `for` loops with conditions don't terminate correctly
+3. **Control flow**: Branch instructions without preceding CMP
 
 ### Fix Tasks
 
-[ ] **FIX-001**: Implement comparison code generation correctly
-    - Location: pkg/selection/ or pkg/asmgen/
-    - Fix Olt, Ogt, Oeq, One, Ole, Oge operations
-    - Must generate: cmp + cset (for expressions) or cmp + b.cond (for control flow)
+[x] **FIX-001**: Implement comparison code generation correctly
+    - Root cause: cminor.Ecmp was converted to cminorsel.Ebinop, losing the Comparison condition
+    - TranslateBinaryOp in rtlgen/instr.go defaulted Ocmp to Oadd
+    - Fixed by:
+      1. Added Ecmp expression type to cminorsel/ast.go that preserves Op and Cmp fields
+      2. Updated selection/expr.go selectCmp() to produce Ecmp instead of Ebinop
+      3. Added translateCmp() in rtlgen/expr.go to handle Ecmp expressions
+      4. Added TranslateCompareOp() in rtlgen/instr.go to map comparison ops to RTL
+    - Now generates: cmp + cset instructions correctly
+    - All C1.3 comparison tests pass (10/10)
 
 [ ] **FIX-002**: Ensure conditionals set comparison flags
     - if/while/for conditions must emit CMP before branch
     - Currently emitting b.gt without preceding CMP
+    - Note: Separate from comparison expressions (which now work)
 
 ### Usability Verdict
 

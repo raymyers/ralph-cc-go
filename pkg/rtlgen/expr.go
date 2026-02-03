@@ -57,6 +57,8 @@ func (t *ExprTranslator) TranslateExpr(e cminorsel.Expr, dest rtl.Reg, succ rtl.
 		return t.translateAddshift(expr, dest, succ)
 	case cminorsel.Esubshift:
 		return t.translateSubshift(expr, dest, succ)
+	case cminorsel.Ecmp:
+		return t.translateCmp(expr, dest, succ)
 	default:
 		// Unknown expression - emit nop
 		return t.ib.EmitNop(succ)
@@ -366,6 +368,25 @@ func translateShiftOp(op cminorsel.ShiftOp, amount int) rtl.Operation {
 	default:
 		return rtl.Oshlimm{N: int32(amount)}
 	}
+}
+
+// translateCmp handles comparison expressions that produce 0 or 1.
+func (t *ExprTranslator) translateCmp(e cminorsel.Ecmp, dest rtl.Reg, succ rtl.Node) rtl.Node {
+	// Allocate temporaries for arguments
+	leftReg := t.regs.Fresh()
+	rightReg := t.regs.Fresh()
+
+	// Translate the comparison operator and condition to an RTL comparison operation
+	op := TranslateCompareOp(e.Op, rtl.Condition(e.Cmp))
+
+	// Emit the comparison operation: dest = cmp(left, right)
+	opNode := t.ib.EmitOp(op, []rtl.Reg{leftReg, rightReg}, dest, succ)
+
+	// Translate right operand first (chains to op)
+	rightEntry := t.TranslateExpr(e.Right, rightReg, opNode)
+
+	// Translate left operand (chains to right translation)
+	return t.TranslateExpr(e.Left, leftReg, rightEntry)
 }
 
 // ResetLetBindings clears the let binding stack.

@@ -157,9 +157,11 @@ func (ctx *SelectionContext) selectCmp(c cminor.Ecmp) cminorsel.Expr {
 	left := ctx.SelectExpr(c.Left)
 	right := ctx.SelectExpr(c.Right)
 
-	// Comparisons produce int 0 or 1, represented as Ebinop in CminorSel
-	return cminorsel.Ebinop{
+	// Comparisons produce int 0 or 1, represented as Ecmp in CminorSel
+	// preserving the comparison condition (Ceq, Clt, etc.)
+	return cminorsel.Ecmp{
 		Op:    cminorsel.BinaryOp(c.Op),
+		Cmp:   cminorsel.Comparison(c.Cmp),
 		Left:  left,
 		Right: right,
 	}

@@ -183,6 +183,28 @@ func TranslateChunk(c cminorsel.Chunk) rtl.Chunk {
 	return c
 }
 
+// TranslateCompareOp converts a CminorSel comparison operator to an RTL comparison operation.
+// This handles comparison expressions that produce 0 or 1.
+func TranslateCompareOp(op cminorsel.BinaryOp, cond rtl.Condition) rtl.Operation {
+	switch op {
+	case cminorsel.Ocmp:
+		return rtl.Ocmp{Cond: cond}
+	case cminorsel.Ocmpu:
+		return rtl.Ocmpu{Cond: cond}
+	case cminorsel.Ocmpf:
+		return rtl.Ocmpf{Cond: cond}
+	case cminorsel.Ocmps:
+		return rtl.Ocmps{Cond: cond}
+	case cminorsel.Ocmpl:
+		return rtl.Ocmpl{Cond: cond}
+	case cminorsel.Ocmplu:
+		return rtl.Ocmplu{Cond: cond}
+	default:
+		// Default to signed int comparison
+		return rtl.Ocmp{Cond: cond}
+	}
+}
+
 // InstrBuilder helps build sequences of RTL instructions.
 // It integrates CFGBuilder and RegAllocator for streamlined generation.
 type InstrBuilder struct {

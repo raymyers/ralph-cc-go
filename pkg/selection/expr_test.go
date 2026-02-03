@@ -214,12 +214,15 @@ func TestSelectExpr_Cmp(t *testing.T) {
 	}
 	result := ctx.SelectExpr(expr)
 
-	b, ok := result.(cminorsel.Ebinop)
+	cmp, ok := result.(cminorsel.Ecmp)
 	if !ok {
-		t.Fatalf("expected Ebinop, got %T", result)
+		t.Fatalf("expected Ecmp, got %T", result)
 	}
-	if b.Op != cminorsel.Ocmp {
-		t.Errorf("expected Ocmp, got %v", b.Op)
+	if cmp.Op != cminorsel.Ocmp {
+		t.Errorf("expected Ocmp, got %v", cmp.Op)
+	}
+	if cmp.Cmp != cminorsel.Ceq {
+		t.Errorf("expected Ceq, got %v", cmp.Cmp)
 	}
 }
 

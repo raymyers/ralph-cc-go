@@ -396,6 +396,14 @@ type Esubshift struct {
 	Right Expr
 }
 
+// Ecmp represents a comparison expression that produces int 0 or 1
+type Ecmp struct {
+	Op    BinaryOp   // Ocmp, Ocmpu, Ocmpf, Ocmps, Ocmpl, Ocmplu
+	Cmp   Comparison // Ceq, Cne, Clt, Cle, Cgt, Cge
+	Left  Expr
+	Right Expr
+}
+
 // ShiftOp represents shift operations for combined ops
 type ShiftOp int
 
@@ -565,6 +573,7 @@ func (Elet) implCminorSelNode()         {}
 func (Eletvar) implCminorSelNode()      {}
 func (Eaddshift) implCminorSelNode()    {}
 func (Esubshift) implCminorSelNode()    {}
+func (Ecmp) implCminorSelNode()         {}
 
 func (Sskip) implCminorSelNode()       {}
 func (Sassign) implCminorSelNode()     {}
@@ -601,6 +610,7 @@ func (Elet) implCminorSelExpr()       {}
 func (Eletvar) implCminorSelExpr()    {}
 func (Eaddshift) implCminorSelExpr()  {}
 func (Esubshift) implCminorSelExpr()  {}
+func (Ecmp) implCminorSelExpr()       {}
 
 // Marker methods for Stmt interface
 func (Sskip) implCminorSelStmt()       {}
