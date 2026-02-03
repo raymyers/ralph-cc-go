@@ -3,6 +3,6 @@
 [x] Study the current test and describe current testing strategy in `docs/TESTING.md`. Include a critique section to point out opportunities. Progress: `progress/TESTING_DOCS.md`
 [x] Debug segfault in `testdata/example-c/fib_fn.c`. When you find the issue, compare that component to the equivelant in compcert, as well as evaluate the tests. Fix and prevent. Progress: `progress/FIB_SEGFAULT.md`
 
-[ ] Make `run.sh` build the final exe to an out/ dir and gitignore.
+[x] Make `run.sh` build the final exe to an out/ dir and gitignore. Progress: `progress/RUN_OUT_DIR.md`
 
 [ ] Consider that trying out hello.c, fib.c, and fib_fn.c all revealed problems. Predict what the next 5 programs will be to introduce problems, still staying within simple c, put them in `testdata/example-c`, diagnose and fix.

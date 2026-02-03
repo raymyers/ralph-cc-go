@@ -19,13 +19,18 @@ fi
 
 INPUT="$1"
 BASENAME="${INPUT%.c}"
+INPUTNAME="$(basename "$BASENAME")"
 ASM_FILE="${BASENAME}.s"
 MACOS_ASM="${BASENAME}_macos.s"
 OBJ_FILE="${BASENAME}.o"
-EXEC_FILE="${BASENAME}"
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 RALPH_CC="${SCRIPT_DIR}/../bin/ralph-cc"
+OUT_DIR="${SCRIPT_DIR}/../out"
+
+# Create output directory
+mkdir -p "$OUT_DIR"
+EXEC_FILE="${OUT_DIR}/${INPUTNAME}"
 
 # Step 1: Generate ARM64 assembly
 echo "==> Compiling $INPUT to ARM64 assembly..."

@@ -1,6 +1,7 @@
 plan/*/logs
 bin/
 coverage/
+out/
 
 # Debug phase output suffixes (from docs/PHASES.md)
 *.parsed.c
@@ -15,10 +16,6 @@ coverage/
 
 # Preprocessed output
 *.i
-
-# Compiled test binaries
-testdata/example-c/hello
-testdata/example-c/fib
 
 # Object files
 *.o
