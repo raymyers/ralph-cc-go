@@ -37,6 +37,9 @@ type Allocator struct {
 	activeMoves      [][2]rtl.Reg // Moves not yet ready to coalesce
 
 	nextSpillSlot int64 // Next available spill slot offset
+
+	// Precolored registers for parameters (maps param index to its fixed location)
+	precoloredParams map[rtl.Reg]ltl.Loc
 }
 
 // AllocationResult holds the result of register allocation
@@ -51,18 +54,34 @@ type AllocationResult struct {
 
 // NewAllocator creates a new register allocator
 func NewAllocator(fn *rtl.Function, graph *InterferenceGraph, liveness *LivenessInfo) *Allocator {
-	return &Allocator{
-		fn:             fn,
-		graph:          graph,
-		liveness:       liveness,
-		K:              NumAllocatableIntRegs,
-		colors:         make(map[rtl.Reg]int),
-		spillSlot:      make(map[rtl.Reg]int),
-		coalescedNodes: NewRegSet(),
-		coloredNodes:   NewRegSet(),
-		spilledNodes:   NewRegSet(),
-		alias:          make(map[rtl.Reg]rtl.Reg),
+	a := &Allocator{
+		fn:               fn,
+		graph:            graph,
+		liveness:         liveness,
+		K:                NumAllocatableIntRegs,
+		colors:           make(map[rtl.Reg]int),
+		spillSlot:        make(map[rtl.Reg]int),
+		coalescedNodes:   NewRegSet(),
+		coloredNodes:     NewRegSet(),
+		spilledNodes:     NewRegSet(),
+		alias:            make(map[rtl.Reg]rtl.Reg),
+		precoloredParams: make(map[rtl.Reg]ltl.Loc),
 	}
+
+	// Precolor parameters according to calling convention
+	// Parameters 0-7 go to X0-X7, parameters 8+ go on the stack
+	// IMPORTANT: Do NOT precolor parameters that are live across calls.
+	// Those parameters need to be moved to callee-saved registers.
+	for i, param := range fn.Params {
+		// Check if this parameter is live across any call
+		if graph.LiveAcrossCalls.Contains(param) {
+			// Don't precolor - let it be allocated to a callee-saved register
+			continue
+		}
+		a.precoloredParams[param] = ArgLocation(i, false)
+	}
+
+	return a
 }
 
 // Allocate performs register allocation and returns the result
@@ -92,8 +111,28 @@ func (a *Allocator) Allocate() *AllocationResult {
 }
 
 func (a *Allocator) buildWorklists() {
-	// Categorize nodes into worklists
+	// First, mark precolored params as already colored
+	// They should not be in any worklist and their colors are fixed
+	for param, loc := range a.precoloredParams {
+		if regLoc, ok := loc.(ltl.R); ok {
+			// Find the color index for this register
+			for i, mreg := range AllocatableIntRegs {
+				if mreg == regLoc.Reg {
+					a.colors[param] = i
+					a.coloredNodes.Add(param)
+					break
+				}
+			}
+		}
+		// Stack-slot params don't get colored - they'll be handled in buildResult
+	}
+
+	// Categorize non-precolored nodes into worklists
 	for r := range a.graph.Nodes {
+		// Skip precolored params - they're already colored
+		if _, isParam := a.precoloredParams[r]; isParam {
+			continue
+		}
 		if a.degree(r) >= a.K {
 			a.spillWorklist = append(a.spillWorklist, r)
 		} else if a.graph.MoveRelated(r) {
@@ -392,6 +431,11 @@ func (a *Allocator) assignColors() {
 		} else if a.spilledNodes.Contains(alias) {
 			a.spilledNodes.Add(r)
 			a.spillSlot[r] = a.spillSlot[alias]
+		} else if _, isParam := a.precoloredParams[alias]; isParam {
+			// Alias is a precolored stack-slot param (not in coloredNodes)
+			// r inherits the same stack slot location
+			// We don't add to coloredNodes or spilledNodes - buildResult will handle via precoloredParams
+			a.precoloredParams[r] = a.precoloredParams[alias]
 		}
 	}
 }
@@ -403,8 +447,17 @@ func (a *Allocator) buildResult() *AllocationResult {
 		StackSize:   a.nextSpillSlot,
 	}
 
+	// First, map precolored parameters (these have fixed locations)
+	for param, loc := range a.precoloredParams {
+		result.RegToLoc[param] = loc
+	}
+
 	// Map colored registers to physical registers
 	for r := range a.coloredNodes {
+		// Skip precolored params - they already have their locations
+		if _, isParam := a.precoloredParams[r]; isParam {
+			continue
+		}
 		color := a.colors[r]
 		if color < len(AllocatableIntRegs) {
 			result.RegToLoc[r] = ltl.R{Reg: AllocatableIntRegs[color]}
@@ -413,6 +466,10 @@ func (a *Allocator) buildResult() *AllocationResult {
 
 	// Map spilled registers to stack slots
 	for r := range a.spilledNodes {
+		// Skip precolored params - they already have their locations
+		if _, isParam := a.precoloredParams[r]; isParam {
+			continue
+		}
 		slot := a.spillSlot[r]
 		result.RegToLoc[r] = ltl.S{
 			Slot: ltl.SlotLocal,

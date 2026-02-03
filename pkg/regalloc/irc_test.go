@@ -255,3 +255,49 @@ func TestLocationIsPhysicalRegister(t *testing.T) {
 		t.Error("should be an integer register")
 	}
 }
+
+func TestRegisterLiveAcrossCallUsesCalleeSaved(t *testing.T) {
+	// factorial(n):
+	// 1: if n <= 1 goto 5 else goto 2
+	// 2: x2 = sub(n, 1)
+	// 3: x3 = call factorial(x2)
+	// 4: x4 = mul(n, x3) <- n is used here, after the call
+	// 5: return 1
+	// 6: return x4
+	//
+	// n (register 1) is live across the call at node 3.
+	// The allocator must assign it to a callee-saved register.
+	n := rtl.Reg(1) // param
+	fn := &rtl.Function{
+		Name:   "factorial",
+		Params: []rtl.Reg{n},
+		Code: map[rtl.Node]rtl.Instruction{
+			1: rtl.Icond{Cond: rtl.Ccompimm{Cond: rtl.Cle, N: 1}, Args: []rtl.Reg{n}, IfSo: 5, IfNot: 2},
+			2: rtl.Iop{Op: rtl.Oaddimm{N: -1}, Args: []rtl.Reg{n}, Dest: 2, Succ: 3},
+			3: rtl.Icall{Fn: rtl.FunSymbol{Name: "factorial"}, Args: []rtl.Reg{2}, Dest: 3, Succ: 4},
+			4: rtl.Iop{Op: rtl.Omul{}, Args: []rtl.Reg{n, 3}, Dest: 4, Succ: 6},
+			5: rtl.Ireturn{Arg: ptr(rtl.Reg(1))},
+			6: rtl.Ireturn{Arg: ptr(rtl.Reg(4))},
+		},
+		Entrypoint: 1,
+	}
+
+	result := AllocateFunction(fn)
+
+	// n (reg 1) should be assigned to a callee-saved register
+	loc := result.RegToLoc[n]
+	r, ok := loc.(ltl.R)
+	if !ok {
+		// Also OK if spilled to stack, but prefer callee-saved
+		_, isStack := loc.(ltl.S)
+		if isStack {
+			t.Log("n was spilled to stack (acceptable)")
+			return
+		}
+		t.Fatalf("n should be in a register or stack, got %T", loc)
+	}
+
+	if !IsCalleeSaved(r.Reg) {
+		t.Errorf("n is live across call and should be in callee-saved register, got %s (caller-saved)", r.Reg)
+	}
+}

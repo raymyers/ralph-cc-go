@@ -342,6 +342,44 @@ func TestAnalyzeLivenessWithLoop(t *testing.T) {
 	}
 }
 
+func TestAnalyzeLivenessAcrossCall(t *testing.T) {
+	// Function where a value is live across a call:
+	// factorial(n):
+	// 1: if n <= 1 goto 5 else goto 2
+	// 2: x2 = sub(n, 1)
+	// 3: x3 = call factorial(x2)
+	// 4: x4 = mul(n, x3) <- n is used here, after the call
+	// 5: return 1
+	// 6: return x4
+	n := rtl.Reg(1) // param
+	fn := &rtl.Function{
+		Name:   "factorial",
+		Params: []rtl.Reg{n},
+		Code: map[rtl.Node]rtl.Instruction{
+			1: rtl.Icond{Cond: rtl.Ccompimm{Cond: rtl.Cle, N: 1}, Args: []rtl.Reg{n}, IfSo: 5, IfNot: 2},
+			2: rtl.Iop{Op: rtl.Oaddimm{N: -1}, Args: []rtl.Reg{n}, Dest: 2, Succ: 3},
+			3: rtl.Icall{Fn: rtl.FunSymbol{Name: "factorial"}, Args: []rtl.Reg{2}, Dest: 3, Succ: 4},
+			4: rtl.Iop{Op: rtl.Omul{}, Args: []rtl.Reg{n, 3}, Dest: 4, Succ: 6},
+			5: rtl.Ireturn{Arg: ptr(rtl.Reg(1))}, // Actually would return 1, but use n for simplicity
+			6: rtl.Ireturn{Arg: ptr(rtl.Reg(4))},
+		},
+		Entrypoint: 1,
+	}
+
+	info := AnalyzeLiveness(fn)
+
+	// Critical check: at node 3 (the call), n (register 1) should be live out
+	// because it's used at node 4
+	if !info.LiveOut[3].Contains(n) {
+		t.Error("n should be live out at call node 3 (it's used at node 4)")
+	}
+
+	// n should also be live-in at node 4
+	if !info.LiveIn[4].Contains(n) {
+		t.Error("n should be live in at node 4")
+	}
+}
+
 func ptr[T any](v T) *T {
 	return &v
 }
