@@ -65,21 +65,22 @@ func ComputeLayout(fn *linear.Function, calleeSaveRegs int) *FrameLayout {
 	// Outgoing argument area
 	layout.OutgoingSize = alignUp(info.OutgoingSize, 8)
 
-	// Compute offsets from FP (all negative since they're below FP)
-	// FP points at saved FP/LR pair, so first available slot is at -8
-	offset := int64(0)
+	// Compute offsets from FP
+	// After prologue: FP = SP, and FP/LR were saved at [SP] and [SP+8].
+	// Frame layout from FP (low to high addresses):
+	//   [FP + 0]                        : saved old FP
+	//   [FP + 8]                        : saved LR
+	//   [FP + 16 ... +16+CalleeSaveSize-1] : callee-saved registers
+	//   [FP + 16 + CalleeSaveSize ...]  : locals
+	//
+	// Callee-save registers start at offset 16 from FP (after FP/LR)
+	layout.CalleeSaveOffset = 16
 
-	// Callee-save registers come first (just below FP)
-	offset -= layout.CalleeSaveSize
-	layout.CalleeSaveOffset = offset
+	// Local variables come after FP/LR (16) + callee-saves
+	layout.LocalOffset = 16 + layout.CalleeSaveSize
 
-	// Local variables come next
-	offset -= layout.LocalSize
-	layout.LocalOffset = offset
-
-	// Outgoing arguments at the bottom
-	offset -= layout.OutgoingSize
-	layout.OutgoingOffset = offset
+	// Outgoing arguments at the end (not typically used with this layout)
+	layout.OutgoingOffset = 16 + layout.CalleeSaveSize + layout.LocalSize
 
 	// Total frame size: includes FP/LR save area (16 bytes) plus our sections
 	// This is the amount SP is decremented from old SP

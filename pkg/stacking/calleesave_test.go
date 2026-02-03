@@ -179,9 +179,9 @@ func TestComputeCalleeSaveInfo(t *testing.T) {
 	if info.SaveOffsets[0] != layout.CalleeSaveOffset {
 		t.Errorf("SaveOffsets[0] = %d, want %d", info.SaveOffsets[0], layout.CalleeSaveOffset)
 	}
-	// Second reg 8 bytes lower
-	if info.SaveOffsets[1] != layout.CalleeSaveOffset-8 {
-		t.Errorf("SaveOffsets[1] = %d, want %d", info.SaveOffsets[1], layout.CalleeSaveOffset-8)
+	// Second reg 8 bytes higher (positive offsets from FP)
+	if info.SaveOffsets[1] != layout.CalleeSaveOffset+8 {
+		t.Errorf("SaveOffsets[1] = %d, want %d", info.SaveOffsets[1], layout.CalleeSaveOffset+8)
 	}
 }
 
