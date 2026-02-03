@@ -217,16 +217,4 @@ The following issues prevent hello.c from running correctly after compilation:
       - C2.12 string literal assignment test passes
     - STATUS: **FULLY USABLE** - All Category 1 and Category 2 core features work!
     - 67 runtime tests pass (C1.*, C2.*, C3.1, C3.8)
-[ ] Investigate and solve this segfault, and ensure we're gitignoring build artifacts from the process. `./scripts/run.sh testdata/example-c/fib.c`
-    - No longer a segfault - program runs but produces incorrect output
-    - Progress: Implemented caller-saved register handling
-      - Added LiveAcrossCalls tracking in interference graph (pkg/regalloc/interference.go)
-      - Registers live across function calls now assigned to callee-saved registers (X19-X28)
-      - Added FirstCalleeSavedColor constant to conventions.go
-      - Fixed coalescing to propagate LiveAcrossCalls constraint (pkg/regalloc/irc.go)
-      - Added move from X0 to destination after function calls (pkg/regalloc/transform.go)
-      - All existing runtime tests pass (make check succeeds)
-    - Remaining issue: fib.c still loops infinitely with wrong values
-      - Some variable (likely loop counter) still being clobbered across printf calls
-      - Need to investigate liveness analysis for the specific loop structure
-    - Build artifacts added to .gitignore (testdata/example-c/fib, *.o)
+[ ] Study and updade `plan/02-e2e-ralph/PLAN_FIB.md`. Task: Investigate and solve this segfault, and ensure we're gitignoring build artifacts from the process. `./scripts/run.sh testdata/example-c/fib.c`.

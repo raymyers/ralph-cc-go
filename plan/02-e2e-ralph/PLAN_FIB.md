@@ -1,0 +1,12 @@
+   - No longer a segfault - program runs but produces incorrect output
+    - Progress: Implemented caller-saved register handling
+      - Added LiveAcrossCalls tracking in interference graph (pkg/regalloc/interference.go)
+      - Registers live across function calls now assigned to callee-saved registers (X19-X28)
+      - Added FirstCalleeSavedColor constant to conventions.go
+      - Fixed coalescing to propagate LiveAcrossCalls constraint (pkg/regalloc/irc.go)
+      - Added move from X0 to destination after function calls (pkg/regalloc/transform.go)
+      - All existing runtime tests pass (make check succeeds)
+    - Remaining issue: fib.c still loops infinitely with wrong values
+      - Some variable (likely loop counter) still being clobbered across printf calls
+      - Need to investigate liveness analysis for the specific loop structure
+    - Build artifacts added to .gitignore (testdata/example-c/fib, *.o)
