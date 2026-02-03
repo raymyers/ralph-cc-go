@@ -98,6 +98,7 @@ type linearizer struct {
 func (l *linearizer) linearize() *linear.Function {
 	result := linear.NewFunction(l.fn.Name, l.fn.Sig)
 	result.Stacksize = l.fn.Stacksize
+	result.Params = l.fn.Params // Propagate parameter locations
 
 	if len(l.fn.Code) == 0 {
 		return result

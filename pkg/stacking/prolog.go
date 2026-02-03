@@ -158,3 +158,117 @@ func IsLeafFunction(code []mach.Instruction) bool {
 	}
 	return true
 }
+
+// ARM64 argument registers (X0-X7 for integers)
+var intArgRegs = []ltl.MReg{ltl.X0, ltl.X1, ltl.X2, ltl.X3, ltl.X4, ltl.X5, ltl.X6, ltl.X7}
+
+// X8 is a good temp register - it's caller-saved and not used for argument passing
+const paramCopyTempReg = ltl.X8
+
+// GenerateParamCopies generates move instructions to copy incoming parameters
+// from their ABI-specified locations (X0, X1, etc.) to their allocated locations.
+// This must be emitted after the prologue, before the function body.
+//
+// Handles the parallel move problem: when parameters are allocated to registers
+// that conflict with incoming argument registers, we need to be careful about
+// the order of moves (or use a temporary register to break cycles).
+func GenerateParamCopies(params []ltl.Loc) []mach.Instruction {
+	// Build a map of moves needed: dest -> src (incoming reg)
+	moves := make(map[ltl.MReg]ltl.MReg)
+	var stackMoves []mach.Instruction
+
+	for i, paramLoc := range params {
+		if i >= len(intArgRegs) {
+			break
+		}
+
+		incomingReg := intArgRegs[i]
+
+		switch loc := paramLoc.(type) {
+		case ltl.R:
+			if loc.Reg != incomingReg {
+				moves[loc.Reg] = incomingReg
+			}
+
+		case ltl.S:
+			// Stack moves can be done immediately - no conflict possible
+			stackMoves = append(stackMoves, mach.Msetstack{
+				Src: incomingReg,
+				Ofs: loc.Ofs,
+				Ty:  loc.Ty,
+			})
+		}
+	}
+
+	// Now resolve the parallel moves using the algorithm from linearize/convertCall
+	// This handles cycles by using a temporary register
+	var result []mach.Instruction
+	result = append(result, stackMoves...)
+
+	done := make(map[ltl.MReg]bool)
+
+	// isSourceOfPendingMove returns true if reg is the source of a move that hasn't been done
+	isSourceOfPendingMove := func(reg ltl.MReg) bool {
+		for dest, src := range moves {
+			if done[dest] {
+				continue
+			}
+			if src == reg {
+				return true
+			}
+		}
+		return false
+	}
+
+	for len(done) < len(moves) {
+		madeProgress := false
+
+		// Try to find a move where the destination is not needed as a source
+		for dest, src := range moves {
+			if done[dest] {
+				continue
+			}
+
+			// Check if this destination register is used as source by another pending move
+			if isSourceOfPendingMove(dest) {
+				continue
+			}
+
+			// Safe to do this move
+			result = append(result, mach.Mop{
+				Op:   rtl.Omove{},
+				Args: []ltl.MReg{src},
+				Dest: dest,
+			})
+			done[dest] = true
+			madeProgress = true
+		}
+
+		// If no progress, we have a cycle - break it with temp register
+		if !madeProgress {
+			// Find any pending move and save its source to temp
+			for dest, src := range moves {
+				if done[dest] {
+					continue
+				}
+
+				// Save the source value in temp
+				result = append(result, mach.Mop{
+					Op:   rtl.Omove{},
+					Args: []ltl.MReg{src},
+					Dest: paramCopyTempReg,
+				})
+
+				// Update moves map: any move that uses src as source now uses temp
+				for dest2, src2 := range moves {
+					if src2 == src {
+						moves[dest2] = paramCopyTempReg
+					}
+				}
+				break
+			}
+		}
+	}
+
+	return result
+}

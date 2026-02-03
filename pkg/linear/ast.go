@@ -195,6 +195,7 @@ func (FunSymbol) implFunRef() {}
 type Function struct {
 	Name      string        // function name
 	Sig       Sig           // function signature
+	Params    []Loc         // parameter locations (after register allocation)
 	Stacksize int64         // stack frame size
 	Code      []Instruction // linear instruction sequence
 }

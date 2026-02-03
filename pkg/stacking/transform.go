@@ -74,6 +74,12 @@ func (t *transformer) transform() *mach.Function {
 		machFn.Append(inst)
 	}
 
+	// 6b. Generate parameter copies (move from incoming regs to allocated locations)
+	paramCopies := GenerateParamCopies(t.linearFn.Params)
+	for _, inst := range paramCopies {
+		machFn.Append(inst)
+	}
+
 	// 7. Transform body instructions
 	for _, inst := range t.linearFn.Code {
 		machInsts := t.transformInst(inst)
