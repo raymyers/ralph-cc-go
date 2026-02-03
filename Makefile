@@ -1,4 +1,4 @@
-.PHONY: all build test lint check coverage clean
+.PHONY: all build test test-slow test-all lint check coverage clean
 
 BINARY_NAME := ralph-cc
 BUILD_DIR := bin
@@ -11,7 +11,12 @@ build:
 	go build -o $(BUILD_DIR)/$(BINARY_NAME) ./cmd/ralph-cc
 
 test:
-	go test -v ./...
+	go test -skip 'TestE2ERuntimeYAML' ./...
+
+test-slow:
+	go test -run 'TestE2ERuntimeYAML' ./...
+
+test-all: test test-slow
 
 lint:
 	@which golangci-lint > /dev/null || (echo "golangci-lint not installed, using go vet" && go vet ./...)
@@ -24,7 +29,7 @@ coverage:
 	@echo "HTML coverage report: $(COVERAGE_DIR)/coverage.html"
 	go tool cover -html=$(COVERAGE_DIR)/coverage.out -o $(COVERAGE_DIR)/coverage.html
 
-check: lint test
+check: lint test-all
 
 clean:
 	rm -rf $(BUILD_DIR) $(COVERAGE_DIR)
