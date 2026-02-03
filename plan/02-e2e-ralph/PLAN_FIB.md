@@ -1,4 +1,4 @@
-   - FIXED! fib.c now compiles and runs correctly
+   - PARTIAL FIX - no longer crashes, but output is still wrong
     - Progress history:
       - Implemented caller-saved register handling
         - Added LiveAcrossCalls tracking in interference graph (pkg/regalloc/interference.go)
@@ -16,3 +16,13 @@
       - Updated tests in pkg/stacking/*_test.go to expect positive offsets
     - All existing runtime tests pass (make check succeeds)
     - Build artifacts added to .gitignore (testdata/example-c/fib, *.o)
+    
+    - REMAINING ISSUES:
+      - fib.c runs but outputs wrong values (garbage: 6132904688 repeated)
+      - Register allocation is non-deterministic (Go map iteration order)
+      - Output varies between runs due to different register assignments
+      - Need to investigate:
+        1. Make register allocation deterministic
+        2. Check if there's a liveness/interference bug for variables across calls
+        3. The garbage value (0x16d8cb2f0) looks like a memory address
+        4. Possible type confusion (int vs long long) in printf call
