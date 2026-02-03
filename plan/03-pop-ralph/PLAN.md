@@ -5,4 +5,4 @@
 
 [x] Make `run.sh` build the final exe to an out/ dir and gitignore. Progress: `progress/RUN_OUT_DIR.md`
 
-[ ] Consider that trying out hello.c, fib.c, and fib_fn.c all revealed problems. Predict what the next 5 programs will be to introduce problems, still staying within simple c, put them in `testdata/example-c`, diagnose and fix. Progress: `progress/NEXT_FIVE.md`
+[x] Consider that trying out hello.c, fib.c, and fib_fn.c all revealed problems. Predict what the next 5 programs will be to introduce problems, still staying within simple c, put them in `testdata/example-c`, diagnose and fix. Progress: `progress/NEXT_FIVE.md`

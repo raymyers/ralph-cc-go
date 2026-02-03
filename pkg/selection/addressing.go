@@ -116,9 +116,33 @@ func tryAinstack(addr cminor.Expr, stackVars map[string]int64) (AddressResult, b
 		}
 	}
 
-	// Stack var + constant: Ebinop(Oadd/Oaddl, stackvar, const)
+	// Oaddrstack + constant: Ebinop(Oaddl, Econst{Oaddrstack{off1}}, Econst{off2})
 	if binop, ok := addr.(cminor.Ebinop); ok {
 		if binop.Op == cminor.Oadd || binop.Op == cminor.Oaddl {
+			// Check for Oaddrstack + const
+			if c, cok := binop.Left.(cminor.Econst); cok {
+				if stk, sok := c.Const.(cminor.Oaddrstack); sok {
+					if addOff := extractConstantOffset(binop.Right); addOff != nil {
+						return AddressResult{
+							Mode: cminorsel.Ainstack{Offset: stk.Offset + *addOff},
+							Args: nil,
+						}, true
+					}
+				}
+			}
+			// Commutative: const + Oaddrstack
+			if c, cok := binop.Right.(cminor.Econst); cok {
+				if stk, sok := c.Const.(cminor.Oaddrstack); sok {
+					if addOff := extractConstantOffset(binop.Left); addOff != nil {
+						return AddressResult{
+							Mode: cminorsel.Ainstack{Offset: stk.Offset + *addOff},
+							Args: nil,
+						}, true
+					}
+				}
+			}
+
+			// Stack var + constant (legacy form with Evar)
 			if v, vok := binop.Left.(cminor.Evar); vok {
 				if baseOff, found := stackVars[v.Name]; found {
 					if addOff := extractConstantOffset(binop.Right); addOff != nil {
@@ -342,6 +366,8 @@ func translateConst(c cminor.Constant) cminorsel.Expr {
 		return cminorsel.Econst{Const: cminorsel.Osingleconst{Value: cnst.Value}}
 	case cminor.Oaddrsymbol:
 		return cminorsel.Econst{Const: cminorsel.Oaddrsymbol{Symbol: cnst.Name, Offset: cnst.Offset}}
+	case cminor.Oaddrstack:
+		return cminorsel.Econst{Const: cminorsel.Oaddrstack{Offset: cnst.Offset}}
 	}
 	return cminorsel.Econst{Const: cminorsel.Ointconst{Value: 0}}
 }

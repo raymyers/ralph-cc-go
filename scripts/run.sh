@@ -45,7 +45,7 @@ fi
 # - Remove .type and .size directives (ELF-specific)
 # - Convert .section .rodata to macOS equivalent
 # - Add underscore prefix to global symbols and labels (macOS ABI)
-# - Convert ADRP/ADD pairs to use @PAGE/@PAGEOFF for local labels
+# - Convert ADRP/ADD pairs to use @PAGE/@PAGEOFF for both local labels and global symbols
 echo "==> Converting to macOS format..."
 perl -ne '
     BEGIN { $adrp_label = ""; }
@@ -57,12 +57,17 @@ perl -ne '
     s/^([a-zA-Z_][a-zA-Z0-9_]*):/_\1:/;                   # Prefix label definitions
     s/\bbl\s+([a-zA-Z_][a-zA-Z0-9_]*)/bl _\1/;           # Prefix bl targets
     
-    # Handle ADRP to local labels - capture the label for the next ADD
+    # Handle ADRP to local labels (.L prefix) - capture the label for the next ADD
     if (/\badrp\s+(\w+),\s*(\.L\w+)/) {
         $adrp_label = $2;
         s/\badrp\s+(\w+),\s*(\.L\w+)/adrp\t$1, $2\@PAGE/;
     }
-    # Handle ADD after ADRP - use @PAGEOFF with the captured label
+    # Handle ADRP to global symbols - capture the symbol for the next ADD
+    elsif (/\badrp\s+(\w+),\s*([a-zA-Z_][a-zA-Z0-9_]*)/) {
+        $adrp_label = "_$2";  # Add underscore prefix for macOS
+        s/\badrp\s+(\w+),\s*([a-zA-Z_][a-zA-Z0-9_]*)/adrp\t$1, _$2\@PAGE/;
+    }
+    # Handle ADD after ADRP - use @PAGEOFF with the captured label/symbol
     elsif ($adrp_label ne "" && /^\s*add\s+(\w+),\s*(\w+),\s*#0\s*\n/) {
         s/^\s*add\s+(\w+),\s*(\w+),\s*#0\s*\n/\tadd\t$1, $2, $adrp_label\@PAGEOFF\n/;
         $adrp_label = "";

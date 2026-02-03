@@ -304,12 +304,16 @@ func (l *linearizer) convertCall(call ltl.Lcall) []linear.Instruction {
 	// Generate moves using a simple algorithm that handles cycles
 	var result []linear.Instruction
 
-	// For macOS variadic calls: first store variadic args on the stack
-	if useDarwinVariadicConvention && len(call.Args) > fixedArgs {
-		// Store each variadic argument on the stack at [SP + offset]
+	// Store overflow arguments on the stack (for both variadic and non-variadic calls)
+	overflowStart := maxRegArgs
+	if useDarwinVariadicConvention {
+		overflowStart = fixedArgs
+	}
+	if len(call.Args) > overflowStart {
+		// Store each overflow argument on the stack at [SP + offset]
 		// Each argument takes 8 bytes (padded)
-		for i := fixedArgs; i < len(call.Args); i++ {
-			stackOfs := int64((i - fixedArgs) * 8)
+		for i := overflowStart; i < len(call.Args); i++ {
+			stackOfs := int64((i - overflowStart) * 8)
 			argLoc := call.Args[i]
 
 			// Lsetstack requires an MReg source, so ensure arg is in a register
@@ -329,7 +333,7 @@ func (l *linearizer) convertCall(call ltl.Lcall) []linear.Instruction {
 				Src:  srcReg,
 				Slot: ltl.SlotOutgoing,
 				Ofs:  stackOfs,
-				Ty:   ltl.Tlong, // All varargs padded to 8 bytes
+				Ty:   ltl.Tlong, // All args padded to 8 bytes
 			})
 		}
 	}

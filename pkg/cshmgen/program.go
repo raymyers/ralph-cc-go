@@ -5,11 +5,18 @@ package cshmgen
 import (
 	"github.com/raymyers/ralph-cc/pkg/clight"
 	"github.com/raymyers/ralph-cc/pkg/csharpminor"
+	"github.com/raymyers/ralph-cc/pkg/ctypes"
 )
 
 // TranslateProgram translates a complete Clight program to Csharpminor.
 func TranslateProgram(prog *clight.Program) *csharpminor.Program {
 	result := &csharpminor.Program{}
+
+	// Build struct definitions map for type resolution
+	structDefs := make(map[string]ctypes.Tstruct)
+	for _, s := range prog.Structs {
+		structDefs[s.Name] = s
+	}
 
 	// Build global variable set
 	globals := make(map[string]bool)
@@ -19,10 +26,12 @@ func TranslateProgram(prog *clight.Program) *csharpminor.Program {
 
 	// Translate global variables
 	for _, g := range prog.Globals {
-		size := sizeofType(g.Type)
+		typ := resolveStructType(g.Type, structDefs)
+		size := sizeofType(typ)
 		result.Globals = append(result.Globals, csharpminor.VarDecl{
 			Name: g.Name,
 			Size: size,
+			Init: g.Init,
 		})
 	}
 
@@ -31,7 +40,7 @@ func TranslateProgram(prog *clight.Program) *csharpminor.Program {
 
 	// Translate functions
 	for _, fn := range prog.Functions {
-		csharpFn := translateFunctionWithTranslator(&fn, exprTr)
+		csharpFn := translateFunctionWithStructs(&fn, exprTr, structDefs)
 		result.Functions = append(result.Functions, csharpFn)
 	}
 
@@ -50,16 +59,31 @@ func TranslateProgram(prog *clight.Program) *csharpminor.Program {
 	return result
 }
 
+// resolveStructType returns a struct type with its fields if available.
+func resolveStructType(t ctypes.Type, defs map[string]ctypes.Tstruct) ctypes.Type {
+	if s, ok := t.(ctypes.Tstruct); ok {
+		if def, found := defs[s.Name]; found {
+			return def
+		}
+	}
+	return t
+}
+
 // translateFunction translates a single function from Clight to Csharpminor.
 func translateFunction(fn *clight.Function, globals map[string]bool) csharpminor.Function {
 	// Build expression and statement translators
 	exprTr := NewExprTranslator(globals)
-	return translateFunctionWithTranslator(fn, exprTr)
+	return translateFunctionWithStructs(fn, exprTr, nil)
 }
 
 // translateFunctionWithTranslator translates a function using the provided translator.
 // This allows string literals to be collected across all functions.
 func translateFunctionWithTranslator(fn *clight.Function, exprTr *ExprTranslator) csharpminor.Function {
+	return translateFunctionWithStructs(fn, exprTr, nil)
+}
+
+// translateFunctionWithStructs translates a function with struct definitions for type resolution.
+func translateFunctionWithStructs(fn *clight.Function, exprTr *ExprTranslator, structDefs map[string]ctypes.Tstruct) csharpminor.Function {
 	stmtTr := NewStmtTranslator(exprTr)
 
 	// Build signature
@@ -70,10 +94,11 @@ func translateFunctionWithTranslator(fn *clight.Function, exprTr *ExprTranslator
 		sig.Args = append(sig.Args, p.Type)
 	}
 
-	// Translate locals
+	// Translate locals, resolving struct types
 	var locals []csharpminor.VarDecl
 	for _, l := range fn.Locals {
-		size := sizeofType(l.Type)
+		typ := resolveStructType(l.Type, structDefs)
+		size := sizeofType(typ)
 		locals = append(locals, csharpminor.VarDecl{
 			Name: l.Name,
 			Size: size,

@@ -10,9 +10,10 @@ import (
 
 // Transformer converts Cabs AST to Clight AST by extracting side-effects from expressions.
 type Transformer struct {
-	nextTempID int                    // counter for generating unique temp IDs
-	tempTypes  []ctypes.Type          // types of generated temporaries
-	typeEnv    map[string]ctypes.Type // variable name -> type
+	nextTempID int                       // counter for generating unique temp IDs
+	tempTypes  []ctypes.Type             // types of generated temporaries
+	typeEnv    map[string]ctypes.Type    // variable name -> type
+	structDefs map[string]ctypes.Tstruct // struct name -> full definition
 }
 
 // New creates a new SimplExpr transformer.
@@ -21,6 +22,7 @@ func New() *Transformer {
 		nextTempID: 1,
 		tempTypes:  nil,
 		typeEnv:    make(map[string]ctypes.Type),
+		structDefs: make(map[string]ctypes.Tstruct),
 	}
 }
 
@@ -51,6 +53,20 @@ func (t *Transformer) newTemp(typ ctypes.Type) int {
 // SetType records the type of a variable in the environment.
 func (t *Transformer) SetType(name string, typ ctypes.Type) {
 	t.typeEnv[name] = typ
+}
+
+// SetStructDef registers a struct definition.
+func (t *Transformer) SetStructDef(s ctypes.Tstruct) {
+	t.structDefs[s.Name] = s
+}
+
+// ResolveStruct looks up a struct definition by name and returns it with fields.
+// If not found, returns the input unchanged.
+func (t *Transformer) ResolveStruct(s ctypes.Tstruct) ctypes.Tstruct {
+	if def, ok := t.structDefs[s.Name]; ok {
+		return def
+	}
+	return s
 }
 
 // GetType looks up the type of a variable.
@@ -170,6 +186,10 @@ func (t *Transformer) TransformExpr(e cabs.Expr) TransformResult {
 
 	case cabs.Variable:
 		typ := t.GetType(expr.Name)
+		// Resolve struct types to include field information
+		if st, ok := typ.(ctypes.Tstruct); ok {
+			typ = t.ResolveStruct(st)
+		}
 		return TransformResult{
 			Expr: clight.Evar{Name: expr.Name, Typ: typ},
 		}
@@ -587,19 +607,29 @@ func (t *Transformer) transformMember(expr cabs.Member) TransformResult {
 	// For s.f, inner is the struct
 	// For p->f, inner is a pointer (transformed as (*p).f)
 	base := inner.Expr
+	baseTyp := inner.Expr.ExprType()
 	if expr.IsArrow {
 		// Dereference the pointer first
-		ptrTyp := inner.Expr.ExprType()
 		elemTyp := ctypes.Int()
-		if ptr, ok := ptrTyp.(ctypes.Tpointer); ok {
+		if ptr, ok := baseTyp.(ctypes.Tpointer); ok {
 			elemTyp = ptr.Elem
+			// Resolve struct type if the pointed-to type is a struct
+			if st, ok := elemTyp.(ctypes.Tstruct); ok {
+				elemTyp = t.ResolveStruct(st)
+			}
 		}
 		base = clight.Ederef{Ptr: inner.Expr, Typ: elemTyp}
+		baseTyp = elemTyp
 	}
 
-	// Look up field type (simplified - assume int)
+	// Resolve struct type to get field information
+	if st, ok := baseTyp.(ctypes.Tstruct); ok {
+		baseTyp = t.ResolveStruct(st)
+	}
+
+	// Look up field type from resolved struct
 	fieldTyp := ctypes.Int()
-	if st, ok := base.ExprType().(ctypes.Tstruct); ok {
+	if st, ok := baseTyp.(ctypes.Tstruct); ok {
 		for _, f := range st.Fields {
 			if f.Name == expr.Name {
 				fieldTyp = f.Type

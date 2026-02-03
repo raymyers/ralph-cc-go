@@ -9,16 +9,21 @@ import (
 	"github.com/raymyers/ralph-cc/pkg/csharpminor"
 )
 
+// GlobalInfo holds size info for a global variable
+type GlobalInfo struct {
+	Size int64
+}
+
 // Transformer handles the Csharpminor → Cminor transformation.
 type Transformer struct {
 	varEnv   *VarEnv
 	tempMap  map[int]string // Csharpminor temp ID → Cminor variable name
-	globals  map[string]bool
+	globals  map[string]GlobalInfo
 	nextTemp int // Counter for generating unique temp names
 }
 
 // NewTransformer creates a new transformer with the given variable environment.
-func NewTransformer(env *VarEnv, globals map[string]bool) *Transformer {
+func NewTransformer(env *VarEnv, globals map[string]GlobalInfo) *Transformer {
 	return &Transformer{
 		varEnv:   env,
 		tempMap:  make(map[int]string),
@@ -42,7 +47,15 @@ func (t *Transformer) getTempName(id int) string {
 func (t *Transformer) TransformExpr(e csharpminor.Expr) cminor.Expr {
 	switch expr := e.(type) {
 	case csharpminor.Evar:
-		// Could be a global or a local variable
+		// Check if it's a global variable
+		if info, isGlobal := t.globals[expr.Name]; isGlobal {
+			// Global variable read: load from address of symbol
+			return cminor.Eload{
+				Chunk: chunkForSize(info.Size),
+				Addr:  cminor.Econst{Const: cminor.Oaddrsymbol{Name: expr.Name, Offset: 0}},
+			}
+		}
+		// Local variable
 		return t.varEnv.TransformVarRead(expr.Name)
 
 	case csharpminor.Etempvar:
@@ -52,10 +65,14 @@ func (t *Transformer) TransformExpr(e csharpminor.Expr) cminor.Expr {
 
 	case csharpminor.Eaddrof:
 		// Address-of a global or local
+		if _, isGlobal := t.globals[expr.Name]; isGlobal {
+			// Global: address is the symbol address
+			return cminor.Econst{Const: cminor.Oaddrsymbol{Name: expr.Name, Offset: 0}}
+		}
 		if t.varEnv.IsStack(expr.Name) {
 			return t.varEnv.TransformAddrOf(expr.Name)
 		}
-		// For globals, keep as-is (handled differently in Cminor)
+		// Register local - shouldn't happen, but fallback
 		return cminor.Evar{Name: expr.Name}
 
 	case csharpminor.Econst:
@@ -299,7 +316,7 @@ func typeDescriptor(t interface{}) string {
 }
 
 // TransformFunction translates a Csharpminor function to a Cminor function.
-func TransformFunction(fn *csharpminor.Function, globals map[string]bool) cminor.Function {
+func TransformFunction(fn *csharpminor.Function, globals map[string]GlobalInfo) cminor.Function {
 	// Classify variables and compute stack layout
 	env := ClassifyVariables(fn.Locals, fn.Body)
 
@@ -349,10 +366,10 @@ func TransformFunction(fn *csharpminor.Function, globals map[string]bool) cminor
 func TransformProgram(prog *csharpminor.Program) *cminor.Program {
 	result := &cminor.Program{}
 
-	// Build global variable set
-	globals := make(map[string]bool)
+	// Build global variable set with size info
+	globals := make(map[string]GlobalInfo)
 	for _, g := range prog.Globals {
-		globals[g.Name] = true
+		globals[g.Name] = GlobalInfo{Size: g.Size}
 	}
 
 	// Translate global variables

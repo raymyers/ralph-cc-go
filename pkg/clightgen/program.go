@@ -14,15 +14,10 @@ import (
 func TranslateProgram(prog *cabs.Program) *clight.Program {
 	result := &clight.Program{}
 
+	// First pass: collect struct and union definitions
+	structDefs := make(map[string]ctypes.Tstruct)
 	for _, def := range prog.Definitions {
 		switch d := def.(type) {
-		case cabs.FunDef:
-			// Skip function declarations (prototypes) - only process definitions with bodies
-			if d.Body == nil {
-				continue
-			}
-			fn := translateFunction(&d)
-			result.Functions = append(result.Functions, fn)
 		case cabs.StructDef:
 			s := ctypes.Tstruct{
 				Name:   d.Name,
@@ -35,6 +30,7 @@ func TranslateProgram(prog *cabs.Program) *clight.Program {
 				}
 			}
 			result.Structs = append(result.Structs, s)
+			structDefs[s.Name] = s
 		case cabs.UnionDef:
 			u := ctypes.Tunion{
 				Name:   d.Name,
@@ -50,14 +46,55 @@ func TranslateProgram(prog *cabs.Program) *clight.Program {
 		}
 	}
 
+	// Second pass: translate functions and global variables
+	for _, def := range prog.Definitions {
+		switch d := def.(type) {
+		case cabs.FunDef:
+			// Skip function declarations (prototypes) - only process definitions with bodies
+			if d.Body == nil {
+				continue
+			}
+			fn := translateFunctionWithStructs(&d, structDefs)
+			result.Functions = append(result.Functions, fn)
+		case cabs.VarDef:
+			// Global variable definition
+			// Skip extern declarations without initializer (they're just declarations)
+			if d.StorageClass == "extern" && d.Initializer == nil {
+				continue
+			}
+			typ := TypeFromString(d.TypeSpec)
+			var init []byte
+			if d.Initializer != nil {
+				init = evaluateConstantInitializer(d.Initializer, typ)
+			}
+			result.Globals = append(result.Globals, clight.VarDecl{
+				Name: d.Name,
+				Type: typ,
+				Init: init,
+			})
+		}
+	}
+
 	return result
 }
 
 // translateFunction transforms a Cabs function to a Clight function.
+// Deprecated: use translateFunctionWithStructs instead.
 func translateFunction(fn *cabs.FunDef) clight.Function {
+	return translateFunctionWithStructs(fn, nil)
+}
+
+// translateFunctionWithStructs transforms a Cabs function to a Clight function,
+// using the provided struct definitions for field resolution.
+func translateFunctionWithStructs(fn *cabs.FunDef, structDefs map[string]ctypes.Tstruct) clight.Function {
 	// Create transformers
 	simplExpr := simplexpr.New()
 	simplLoc := simpllocals.New()
+
+	// Register struct definitions for field resolution
+	for _, s := range structDefs {
+		simplExpr.SetStructDef(s)
+	}
 
 	// Set up type environment for parameters
 	for _, param := range fn.Params {
@@ -82,6 +119,10 @@ func translateFunction(fn *cabs.FunDef) clight.Function {
 
 	// Continue temp IDs from simpllocals
 	simplExpr.Reset()
+	// Re-register struct definitions after reset
+	for _, s := range structDefs {
+		simplExpr.SetStructDef(s)
+	}
 	for _, param := range fn.Params {
 		simplExpr.SetType(param.Name, TypeFromString(param.TypeSpec))
 	}
@@ -141,6 +182,10 @@ func collectLocalsFromStmt(item cabs.Stmt, locals *[]clight.VarDecl, simplExpr *
 	case cabs.DeclStmt:
 		for _, decl := range s.Decls {
 			typ := TypeFromString(decl.TypeSpec)
+			// Resolve struct types to include field information
+			if st, ok := typ.(ctypes.Tstruct); ok {
+				typ = simplExpr.ResolveStruct(st)
+			}
 			simplExpr.SetType(decl.Name, typ)
 			*locals = append(*locals, clight.VarDecl{
 				Name: decl.Name,
@@ -155,6 +200,10 @@ func collectLocalsFromStmt(item cabs.Stmt, locals *[]clight.VarDecl, simplExpr *
 		// C99 for-loop declarations
 		for _, decl := range s.InitDecl {
 			typ := TypeFromString(decl.TypeSpec)
+			// Resolve struct types to include field information
+			if st, ok := typ.(ctypes.Tstruct); ok {
+				typ = simplExpr.ResolveStruct(st)
+			}
 			simplExpr.SetType(decl.Name, typ)
 			*locals = append(*locals, clight.VarDecl{
 				Name: decl.Name,
@@ -189,4 +238,35 @@ func transformBlock(block *cabs.Block, simplExpr *simplexpr.Transformer) clight.
 		stmts = append(stmts, stmt)
 	}
 	return clight.Seq(stmts...)
+}
+
+// evaluateConstantInitializer evaluates a constant expression to bytes.
+// For now, handles simple integer constants only.
+func evaluateConstantInitializer(expr cabs.Expr, typ ctypes.Type) []byte {
+	size := SizeofType(typ)
+	switch e := expr.(type) {
+	case cabs.Constant:
+		val := e.Value
+		result := make([]byte, size)
+		// Write little-endian integer
+		for i := int64(0); i < size; i++ {
+			result[i] = byte(val & 0xff)
+			val >>= 8
+		}
+		return result
+	case cabs.Unary:
+		// Handle negative constants: -42
+		if e.Op == cabs.OpNeg {
+			if c, ok := e.Expr.(cabs.Constant); ok {
+				negVal := -c.Value
+				result := make([]byte, size)
+				for i := int64(0); i < size; i++ {
+					result[i] = byte(negVal & 0xff)
+					negVal >>= 8
+				}
+				return result
+			}
+		}
+	}
+	return nil
 }

@@ -91,6 +91,10 @@ func (t *transformer) transform() *mach.Function {
 	return machFn
 }
 
+// tempRegs are scratch registers for spilling operations during stacking
+// Using X16/X17 (IP0/IP1) which are reserved for linker veneers but safe to use here
+var stackingTempRegs = []ltl.MReg{ltl.X16, ltl.X17}
+
 // transformInst transforms a single Linear instruction to Mach
 // Returns a slice because some instructions expand to multiple
 func (t *transformer) transformInst(inst linear.Instruction) []mach.Instruction {
@@ -102,11 +106,7 @@ func (t *transformer) transformInst(inst linear.Instruction) []mach.Instruction 
 		return []mach.Instruction{t.slotTrans.TranslateSetstack(i)}
 
 	case linear.Lop:
-		return []mach.Instruction{mach.Mop{
-			Op:   i.Op,
-			Args: t.locsToRegs(i.Args),
-			Dest: t.locToReg(i.Dest),
-		}}
+		return t.transformLop(i)
 
 	case linear.Lload:
 		return []mach.Instruction{mach.Mload{
@@ -186,8 +186,83 @@ func (t *transformer) transformInst(inst linear.Instruction) []mach.Instruction 
 	}
 }
 
+// transformLop handles Lop instructions, generating loads for stack slot args
+// and stores for stack slot destinations
+func (t *transformer) transformLop(i linear.Lop) []mach.Instruction {
+	var result []mach.Instruction
+	tempIdx := 0
+
+	// Process arguments - load stack slots into temp registers
+	args := make([]ltl.MReg, len(i.Args))
+	for j, arg := range i.Args {
+		switch loc := arg.(type) {
+		case linear.R:
+			args[j] = loc.Reg
+		case linear.S:
+			// Load stack slot into temp register
+			if tempIdx >= len(stackingTempRegs) {
+				panic("too many stack slot arguments in Lop")
+			}
+			tempReg := stackingTempRegs[tempIdx]
+			tempIdx++
+			result = append(result, t.slotTrans.TranslateGetstack(linear.Lgetstack{
+				Slot: loc.Slot,
+				Ofs:  loc.Ofs,
+				Ty:   loc.Ty,
+				Dest: tempReg,
+			}))
+			args[j] = tempReg
+		default:
+			panic("unknown location type in Lop arg")
+		}
+	}
+
+	// Process destination
+	var destReg ltl.MReg
+	var destSlot *linear.S
+	if i.Dest == nil {
+		// Some operations (like Onop) may have no destination
+		// In this case, emit the op without a destination (it should be ignored)
+		result = append(result, mach.Mop{
+			Op:   i.Op,
+			Args: args,
+			Dest: 0, // No destination
+		})
+		return result
+	}
+	switch loc := i.Dest.(type) {
+	case linear.R:
+		destReg = loc.Reg
+	case linear.S:
+		// Use temp register for result, store afterwards
+		destReg = stackingTempRegs[0] // Use first temp for dest
+		destSlot = &loc
+	default:
+		panic("unknown location type in Lop dest")
+	}
+
+	// Emit the operation
+	result = append(result, mach.Mop{
+		Op:   i.Op,
+		Args: args,
+		Dest: destReg,
+	})
+
+	// If dest was a stack slot, store the result
+	if destSlot != nil {
+		result = append(result, t.slotTrans.TranslateSetstack(linear.Lsetstack{
+			Src:  destReg,
+			Slot: destSlot.Slot,
+			Ofs:  destSlot.Ofs,
+			Ty:   destSlot.Ty,
+		}))
+	}
+
+	return result
+}
+
 // locsToRegs converts a slice of locations to machine registers
-// Stack slot locations would need to be loaded first (not handled here - assumed spilling done in regalloc)
+// Panics on stack slots - caller should use transformLop for Lop instructions
 func (t *transformer) locsToRegs(locs []linear.Loc) []ltl.MReg {
 	regs := make([]ltl.MReg, len(locs))
 	for i, loc := range locs {

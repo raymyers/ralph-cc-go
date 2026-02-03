@@ -267,6 +267,7 @@ type Sgoto struct {
 type VarDecl struct {
 	Name string
 	Type ctypes.Type
+	Init []byte // Optional initial value
 }
 
 // Function represents a function definition in Clight

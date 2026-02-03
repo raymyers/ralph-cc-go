@@ -6,6 +6,54 @@ import (
 	"github.com/raymyers/ralph-cc/pkg/ctypes"
 )
 
+// SizeofType returns the size in bytes for a given type.
+func SizeofType(t ctypes.Type) int64 {
+	switch t := t.(type) {
+	case ctypes.Tvoid:
+		return 0
+	case ctypes.Tint:
+		switch t.Size {
+		case ctypes.I8:
+			return 1
+		case ctypes.I16:
+			return 2
+		case ctypes.I32:
+			return 4
+		}
+		return 4
+	case ctypes.Tlong:
+		return 8
+	case ctypes.Tfloat:
+		switch t.Size {
+		case ctypes.F32:
+			return 4
+		case ctypes.F64:
+			return 8
+		}
+		return 8
+	case ctypes.Tpointer:
+		return 8 // 64-bit pointers
+	case ctypes.Tarray:
+		return t.Size * SizeofType(t.Elem)
+	case ctypes.Tstruct:
+		var total int64
+		for _, f := range t.Fields {
+			total += SizeofType(f.Type)
+		}
+		return total
+	case ctypes.Tunion:
+		var maxSize int64
+		for _, f := range t.Fields {
+			if sz := SizeofType(f.Type); sz > maxSize {
+				maxSize = sz
+			}
+		}
+		return maxSize
+	default:
+		return 4 // default to int size
+	}
+}
+
 // TypeFromString converts a C type string to a ctypes.Type.
 func TypeFromString(typeName string) ctypes.Type {
 	// Remove any leading/trailing whitespace
