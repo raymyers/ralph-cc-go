@@ -52,6 +52,15 @@ Example:
 2. **Callee-saved registers**: X19-X28 must be used for values live across function calls
 3. **Struct types**: Must resolve struct definitions when creating local variables
 4. **Frame size**: Check Mach output for correct stack frame allocation
+5. **Global variable types**: Global types must be registered in simplexpr's type environment before transforming function bodies, otherwise stores default to int32 size
+
+## Bug Patterns
+
+### Wrong memory access size for globals
+**Symptom**: Global variable stores use `str` (32-bit) instead of `strb` (8-bit) or `strh` (16-bit)
+**Cause**: Global variable types not registered in simplexpr type environment
+**Check**: In Csharpminor output, verify stores use correct chunk (int8s, int16s, int32)
+**Location**: `pkg/clightgen/program.go` - `translateFunctionWithStructsAndGlobals`
 
 ## Test Data
 
