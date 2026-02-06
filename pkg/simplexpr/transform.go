@@ -271,6 +271,10 @@ func (t *Transformer) TransformExpr(e cabs.Expr) TransformResult {
 
 func (t *Transformer) transformUnary(expr cabs.Unary) TransformResult {
 	switch expr.Op {
+	case cabs.OpPlus:
+		// Unary plus is a no-op - just return the inner expression
+		return t.TransformExpr(expr.Expr)
+
 	case cabs.OpNeg:
 		inner := t.TransformExpr(expr.Expr)
 		return TransformResult{

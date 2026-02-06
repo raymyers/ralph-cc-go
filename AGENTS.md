@@ -1,12 +1,3 @@
-
-# container-use
-
-ALWAYS use ONLY Environments for ANY and ALL file, code, or shell operations—NO EXCEPTIONS—even for simple or generic requests.
-
-DO NOT install or use the git cli with the environment_run_cmd tool. All environment tools will handle git operations for you. Changing ".git" yourself will compromise the integrity of your environment.
-
-You MUST inform the user how to view your work using `container-use log <env_id>` AND `container-use checkout <env_id>`. Failure to do this will make your work inaccessible to others.
-
 # ralph-cc
 
 A prototype C compiler in Go, following CompCert's IR design for ARM64.
@@ -55,6 +46,12 @@ Example:
 5. **Global variable types**: Global types must be registered in simplexpr's type environment before transforming function bodies, otherwise stores default to int32 size
 
 ## Bug Patterns
+
+### Unary plus operator not supported (FIXED)
+**Symptom**: Parser error "expected expression, got +" on csmith-generated code
+**Cause**: Parser didn't recognize unary plus (`+x`) as a valid expression prefix
+**Fix**: Added `OpPlus` to `pkg/cabs/ast.go`, handle `TokenPlus` in `pkg/parser/parser.go`, pass through expression in `pkg/simplexpr/transform.go` (unary plus is a semantic no-op)
+**Files Changed**: `pkg/cabs/ast.go`, `pkg/cabs/printer.go`, `pkg/parser/parser.go`, `pkg/simplexpr/transform.go`, `pkg/clightgen/program.go`
 
 ### Assembly format on macOS (FIXED)
 **Symptom**: Assembly/linking errors with `@PAGE@PAGE` or double underscores on symbols

@@ -303,6 +303,10 @@ func evaluateConstantInitializer(expr cabs.Expr, typ ctypes.Type) []byte {
 				return result
 			}
 		}
+		// Handle unary plus: +42 (no-op, just unwrap)
+		if e.Op == cabs.OpPlus {
+			return evaluateConstantInitializer(e.Expr, typ)
+		}
 	}
 	return nil
 }

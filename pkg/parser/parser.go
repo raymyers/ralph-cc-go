@@ -161,7 +161,7 @@ func (p *Parser) isStatementStart() bool {
 	// Expression statement starters (literals, unary ops, etc.)
 	switch p.curToken.Type {
 	case lexer.TokenInt, lexer.TokenLParen, lexer.TokenStar, lexer.TokenAmpersand,
-		lexer.TokenMinus, lexer.TokenNot, lexer.TokenTilde, lexer.TokenIncrement,
+		lexer.TokenMinus, lexer.TokenPlus, lexer.TokenNot, lexer.TokenTilde, lexer.TokenIncrement,
 		lexer.TokenDecrement, lexer.TokenSizeof:
 		return true
 	}
@@ -2378,6 +2378,8 @@ func (p *Parser) parsePrefix() cabs.Expr {
 		return p.parseGroupedExpression()
 	case lexer.TokenMinus:
 		return p.parsePrefixUnary(cabs.OpNeg)
+	case lexer.TokenPlus:
+		return p.parsePrefixUnary(cabs.OpPlus)
 	case lexer.TokenNot:
 		return p.parsePrefixUnary(cabs.OpNot)
 	case lexer.TokenTilde:

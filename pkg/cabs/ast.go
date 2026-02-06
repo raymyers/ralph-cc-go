@@ -81,10 +81,11 @@ const (
 	OpPostDec                 // x--
 	OpAddrOf                  // &x
 	OpDeref                   // *x
+	OpPlus                    // +x (unary plus, no-op)
 )
 
 func (op UnaryOp) String() string {
-	names := []string{"-", "!", "~", "++", "--", "++", "--", "&", "*"}
+	names := []string{"-", "!", "~", "++", "--", "++", "--", "&", "*", "+"}
 	if int(op) < len(names) {
 		return names[op]
 	}

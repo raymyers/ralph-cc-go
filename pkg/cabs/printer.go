@@ -446,6 +446,9 @@ func (p *Printer) printUnary(u Unary) {
 	case OpDeref:
 		fmt.Fprint(p.w, "*")
 		p.printExpr(u.Expr)
+	case OpPlus:
+		fmt.Fprint(p.w, "+")
+		p.printExpr(u.Expr)
 	default:
 		fmt.Fprintf(p.w, "/* unknown unary op %d */", u.Op)
 		p.printExpr(u.Expr)
