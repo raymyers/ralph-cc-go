@@ -252,7 +252,7 @@ def create_program_porter_agent(llm: LLM) -> Agent:
             content="""You port real-world C programs to compile with ralph-cc.
 
 WORKFLOW:
-1. Download the target program (see HARDEN_PLAN.md for URLs)
+1. Download the target program (see plan/08-parallel-sdk-triage/HARDEN_PLAN.md for URLs)
 2. Preprocess with `gcc -E -w -P`
 3. Attempt compilation with ralph-cc
 4. Fix any compiler bugs encountered
