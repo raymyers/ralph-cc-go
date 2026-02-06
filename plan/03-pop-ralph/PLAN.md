@@ -10,5 +10,3 @@
 [ ] Based on `plan/04-learn/ANALYSIS.md`, update AGENTS.md and supporting docs, and make other changes that seem appropriate.
 
 [x] csmith is installed. Learn how to use it and set up headless automation to use it to find bugs in our compiler. It should produce some sort of report we can study. Progress: `progress/CSMITH_FUZZER.md`
-
-[ ] Create several tasks here at the end of `plan/03-pop-ralph/PLAN.md` for groups of bugs found by the csmith tests.
