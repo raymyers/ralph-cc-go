@@ -12,6 +12,7 @@
 
 ### Compilation Failures
 - [x] fail_compile_130805769 - stack slot spill handling incomplete
+- [ ] incomplete_logical_ops - missing helper methods break build (HIGH PRIORITY)
 
 ### Runtime Crashes
 - [x] crash_55976753 - callee-save offset sign error (same as COMMON_CAUSES)

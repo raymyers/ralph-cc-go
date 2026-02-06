@@ -77,3 +77,4 @@
 5. **ABI compliance** - calling conventions, register usage
 6. **AST completeness** - handle all node types (Paren, Cast, etc.)
 7. **Global initialization** - Init bytes propagation through IR passes
+8. **Incomplete implementations** - partial fixes that reference missing code
