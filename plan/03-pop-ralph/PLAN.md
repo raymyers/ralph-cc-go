@@ -13,4 +13,6 @@
 
 [x] Apply all fixes in `plan/05-fix-research-ralph/fixes` and confirm they fix the issue (if possible by re-running csmith with the same seed.) Progress: `progress/APPLY_CSMITH_FIXES.md`
 
-[ ] Where possible, address common causes systemically that are in `plan/05-fix-research-ralph/COMMON_CAUSES.md`, at design, type or testing level, make the codebase safer while continuing to pass all tests.
+[x] Where possible, address common causes systemically that are in `plan/05-fix-research-ralph/COMMON_CAUSES.md`, at design, type or testing level, make the codebase safer while continuing to pass all tests. Progress: `progress/SYSTEMIC_COMMON_CAUSES.md`
+
+[ ] Create `plan/06-regression-ralph/scripts/regression.sh` that quickly runs csmith to verify all the existing `csmith-reports` findings stay fixed (add example seeds to script, don't rely on the folder).

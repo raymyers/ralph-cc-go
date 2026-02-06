@@ -62,13 +62,15 @@ func TypeFromString(typeName string) ctypes.Type {
 	switch typeName {
 	case "void":
 		return ctypes.Void()
-	case "char":
+	case "char", "signed char":
 		return ctypes.Char()
 	case "unsigned char":
 		return ctypes.UChar()
-	case "short":
+	case "short", "signed short", "short int", "signed short int":
 		return ctypes.Short()
-	case "int":
+	case "unsigned short", "unsigned short int":
+		return ctypes.Tint{Size: ctypes.I16, Sign: ctypes.Unsigned}
+	case "int", "signed", "signed int":
 		return ctypes.Int()
 	case "unsigned int", "unsigned":
 		return ctypes.UInt()
@@ -80,6 +82,27 @@ func TypeFromString(typeName string) ctypes.Type {
 		return ctypes.Float()
 	case "double":
 		return ctypes.Double()
+	// Standard integer typedefs from <stdint.h>
+	case "int8_t":
+		return ctypes.Char() // signed 8-bit
+	case "uint8_t":
+		return ctypes.UChar() // unsigned 8-bit
+	case "int16_t":
+		return ctypes.Short() // signed 16-bit
+	case "uint16_t":
+		return ctypes.Tint{Size: ctypes.I16, Sign: ctypes.Unsigned} // unsigned 16-bit
+	case "int32_t":
+		return ctypes.Int() // signed 32-bit
+	case "uint32_t":
+		return ctypes.UInt() // unsigned 32-bit
+	case "int64_t":
+		return ctypes.Long() // signed 64-bit
+	case "uint64_t":
+		return ctypes.Tlong{Sign: ctypes.Unsigned} // unsigned 64-bit
+	case "size_t":
+		return ctypes.Tlong{Sign: ctypes.Unsigned} // unsigned long on 64-bit
+	case "ssize_t", "ptrdiff_t":
+		return ctypes.Long() // signed long on 64-bit
 	default:
 		// Check for pointer types
 		if strings.HasSuffix(typeName, "*") {

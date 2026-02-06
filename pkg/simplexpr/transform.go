@@ -380,6 +380,14 @@ func (t *Transformer) transformBinary(expr cabs.Binary) TransformResult {
 	case cabs.OpComma:
 		return t.transformComma(expr.Left, expr.Right)
 
+	case cabs.OpAnd:
+		// Logical && with short-circuit: a && b => a ? (b ? 1 : 0) : 0
+		return t.transformLogicalAnd(expr.Left, expr.Right)
+
+	case cabs.OpOr:
+		// Logical || with short-circuit: a || b => a ? 1 : (b ? 1 : 0)
+		return t.transformLogicalOr(expr.Left, expr.Right)
+
 	default:
 		// Pure binary operators
 		left := t.TransformExpr(expr.Left)
@@ -679,11 +687,11 @@ func (t *Transformer) cabsToBinaryOp(op cabs.BinaryOp) clight.BinaryOp {
 	case cabs.OpShr:
 		return clight.Oshr
 	case cabs.OpAnd:
-		// Logical && is not directly in Clight - handled via conditionals
-		return clight.Oand // placeholder
+		// Logical && should be handled in transformBinary, not here
+		panic("OpAnd should be handled in transformBinary, not cabsToBinaryOp")
 	case cabs.OpOr:
-		// Logical || is not directly in Clight - handled via conditionals
-		return clight.Oor // placeholder
+		// Logical || should be handled in transformBinary, not here
+		panic("OpOr should be handled in transformBinary, not cabsToBinaryOp")
 	}
 	return clight.Oadd // fallback
 }
@@ -692,22 +700,47 @@ func (t *Transformer) typeFromString(typeName string) ctypes.Type {
 	switch typeName {
 	case "void":
 		return ctypes.Void()
-	case "char":
+	case "char", "signed char":
 		return ctypes.Char()
 	case "unsigned char":
 		return ctypes.UChar()
-	case "short":
+	case "short", "signed short", "short int", "signed short int":
 		return ctypes.Short()
-	case "int":
+	case "unsigned short", "unsigned short int":
+		return ctypes.Tint{Size: ctypes.I16, Sign: ctypes.Unsigned}
+	case "int", "signed", "signed int":
 		return ctypes.Int()
 	case "unsigned int", "unsigned":
 		return ctypes.UInt()
-	case "long":
+	case "long", "long long", "signed long long":
 		return ctypes.Long()
+	case "unsigned long", "unsigned long long":
+		return ctypes.Tlong{Sign: ctypes.Unsigned}
 	case "float":
 		return ctypes.Float()
 	case "double":
 		return ctypes.Double()
+	// Standard integer typedefs from <stdint.h>
+	case "int8_t":
+		return ctypes.Char() // signed 8-bit
+	case "uint8_t":
+		return ctypes.UChar() // unsigned 8-bit
+	case "int16_t":
+		return ctypes.Short() // signed 16-bit
+	case "uint16_t":
+		return ctypes.Tint{Size: ctypes.I16, Sign: ctypes.Unsigned} // unsigned 16-bit
+	case "int32_t":
+		return ctypes.Int() // signed 32-bit
+	case "uint32_t":
+		return ctypes.UInt() // unsigned 32-bit
+	case "int64_t":
+		return ctypes.Long() // signed 64-bit
+	case "uint64_t":
+		return ctypes.Tlong{Sign: ctypes.Unsigned} // unsigned 64-bit
+	case "size_t":
+		return ctypes.Tlong{Sign: ctypes.Unsigned} // unsigned long on 64-bit
+	case "ssize_t", "ptrdiff_t":
+		return ctypes.Long() // signed long on 64-bit
 	default:
 		// Check for pointer types
 		if len(typeName) > 2 && typeName[len(typeName)-1] == '*' {
@@ -755,4 +788,86 @@ func processEscapeSequences(s string) string {
 		}
 	}
 	return string(result)
+}
+
+// transformLogicalAnd implements short-circuit && evaluation.
+// Transforms: a && b => if (a) { if (b) temp=1 else temp=0 } else { temp=0 }
+func (t *Transformer) transformLogicalAnd(left, right cabs.Expr) TransformResult {
+	leftResult := t.TransformExpr(left)
+	rightResult := t.TransformExpr(right)
+
+	// Result type is always int (0 or 1)
+	resultType := ctypes.Int()
+	tempID := t.newTemp(resultType)
+
+	one := clight.Econst_int{Value: 1, Typ: resultType}
+	zero := clight.Econst_int{Value: 0, Typ: resultType}
+
+	// Build: if (left) { stmts(right); if (right) temp=1 else temp=0 } else { temp=0 }
+	var stmts []clight.Stmt
+	stmts = append(stmts, leftResult.Stmts...)
+
+	// Inner if: if (right) temp=1 else temp=0
+	innerIf := clight.Sifthenelse{
+		Cond: rightResult.Expr,
+		Then: clight.Sset{TempID: tempID, RHS: one},
+		Else: clight.Sset{TempID: tempID, RHS: zero},
+	}
+
+	// Then branch: rightResult.Stmts + innerIf
+	thenBranch := clight.Seq(append(rightResult.Stmts, innerIf)...)
+
+	// Outer if
+	outerIf := clight.Sifthenelse{
+		Cond: leftResult.Expr,
+		Then: thenBranch,
+		Else: clight.Sset{TempID: tempID, RHS: zero},
+	}
+	stmts = append(stmts, outerIf)
+
+	return TransformResult{
+		Stmts: stmts,
+		Expr:  clight.Etempvar{ID: tempID, Typ: resultType},
+	}
+}
+
+// transformLogicalOr implements short-circuit || evaluation.
+// Transforms: a || b => if (a) { temp=1 } else { if (b) temp=1 else temp=0 }
+func (t *Transformer) transformLogicalOr(left, right cabs.Expr) TransformResult {
+	leftResult := t.TransformExpr(left)
+	rightResult := t.TransformExpr(right)
+
+	// Result type is always int (0 or 1)
+	resultType := ctypes.Int()
+	tempID := t.newTemp(resultType)
+
+	one := clight.Econst_int{Value: 1, Typ: resultType}
+	zero := clight.Econst_int{Value: 0, Typ: resultType}
+
+	// Build: if (left) { temp=1 } else { stmts(right); if (right) temp=1 else temp=0 }
+	var stmts []clight.Stmt
+	stmts = append(stmts, leftResult.Stmts...)
+
+	// Inner if: if (right) temp=1 else temp=0
+	innerIf := clight.Sifthenelse{
+		Cond: rightResult.Expr,
+		Then: clight.Sset{TempID: tempID, RHS: one},
+		Else: clight.Sset{TempID: tempID, RHS: zero},
+	}
+
+	// Else branch: rightResult.Stmts + innerIf
+	elseBranch := clight.Seq(append(rightResult.Stmts, innerIf)...)
+
+	// Outer if
+	outerIf := clight.Sifthenelse{
+		Cond: leftResult.Expr,
+		Then: clight.Sset{TempID: tempID, RHS: one},
+		Else: elseBranch,
+	}
+	stmts = append(stmts, outerIf)
+
+	return TransformResult{
+		Stmts: stmts,
+		Expr:  clight.Etempvar{ID: tempID, Typ: resultType},
+	}
 }

@@ -262,6 +262,26 @@ tests:
       int main() { return !0; }
     expected_exit: 1
 
+  - name: "C2.1 - logical and with nonzero values"
+    input: |
+      int main() { int x = -8; return x && x; }
+    expected_exit: 1
+
+  - name: "C2.1 - logical or with nonzero values"
+    input: |
+      int main() { int x = -8; return x || 0; }
+    expected_exit: 1
+
+  - name: "C2.1 - logical and normalizes to 1"
+    input: |
+      int main() { return (5 && 10) == 1; }
+    expected_exit: 1
+
+  - name: "C2.1 - logical or normalizes to 1"
+    input: |
+      int main() { return (5 || 10) == 1; }
+    expected_exit: 1
+
   ## C2.2: Bitwise operators
   - name: "C2.2 - bitwise and"
     input: |
