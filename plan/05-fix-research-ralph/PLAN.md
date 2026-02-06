@@ -18,13 +18,13 @@
 - [x] crash_3051214201 - callee-save offset sign error (verified duplicate)
 - [x] crash_2690612573 - callee-save offset sign error (verified duplicate)
 - [x] crash_184567722 - callee-save offset sign error (verified duplicate)
-- [ ] crash_1176020246
-- [ ] crash_1870324845
-- [ ] crash_145691413
-- [ ] crash_928313049
-- [ ] crash_1093823871
-- [ ] crash_853828320
-- [ ] crash_1950716464
-- [ ] crash_23463107
-- [ ] crash_3253220824
-- [ ] crash_114128045
+- [x] crash_1176020246 - callee-save offset sign error (verified duplicate, batch verification)
+- [x] crash_1870324845 - callee-save offset sign error (verified duplicate, batch verification)
+- [x] crash_145691413 - callee-save offset sign error (verified duplicate, batch verification)
+- [x] crash_928313049 - callee-save offset sign error (verified duplicate, batch verification)
+- [x] crash_1093823871 - callee-save offset sign error (verified duplicate, batch verification)
+- [x] crash_853828320 - callee-save offset sign error (verified duplicate, batch verification)
+- [x] crash_1950716464 - callee-save offset sign error (verified duplicate, batch verification)
+- [x] crash_23463107 - callee-save offset sign error (verified duplicate, batch verification)
+- [x] crash_3253220824 - callee-save offset sign error (verified duplicate, batch verification)
+- [x] crash_114128045 - callee-save offset sign error (verified duplicate, batch verification)
