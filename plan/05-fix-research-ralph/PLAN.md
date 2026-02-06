@@ -1,5 +1,30 @@
 # Fix Research Plan
 
-## Findings to Research
+## Csmith Findings to Research
 
-- [ ] 20260205-225448
+- [x] 20260205-225448 - first fuzzing run, multiple findings
+
+## Findings by Type
+
+### Output Mismatches (semantic bugs)
+- [x] mismatch_263236830 - global init with Paren expression lost
+
+### Compilation Failures
+- [ ] fail_compile_130805769
+
+### Runtime Crashes
+- [ ] crash_55976753
+- [ ] crash_785411410
+- [ ] crash_3051214201
+- [ ] crash_2690612573
+- [ ] crash_184567722
+- [ ] crash_1176020246
+- [ ] crash_1870324845
+- [ ] crash_145691413
+- [ ] crash_928313049
+- [ ] crash_1093823871
+- [ ] crash_853828320
+- [ ] crash_1950716464
+- [ ] crash_23463107
+- [ ] crash_3253220824
+- [ ] crash_114128045
