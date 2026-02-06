@@ -583,19 +583,23 @@ func (t *Transformer) transformIndex(expr cabs.Index) TransformResult {
 	stmts = append(stmts, array.Stmts...)
 	stmts = append(stmts, index.Stmts...)
 
-	// Get element type
+	// Get element type and apply array-to-pointer decay if needed
 	elemTyp := ctypes.Int() // default
+	arrayExpr := array.Expr
 	switch at := array.Expr.ExprType().(type) {
 	case ctypes.Tarray:
 		elemTyp = at.Elem
+		// Array decay: array variable becomes pointer to first element
+		// a[i] where a is int[3] becomes *(&a + i)
+		arrayExpr = clight.Eaddrof{Arg: array.Expr, Typ: ctypes.Pointer(elemTyp)}
 	case ctypes.Tpointer:
 		elemTyp = at.Elem
 	}
 
-	// Compute address: a + i
+	// Compute address: a + i (where a is now a pointer after decay)
 	ptrAdd := clight.Ebinop{
 		Op:    clight.Oadd,
-		Left:  array.Expr,
+		Left:  arrayExpr,
 		Right: index.Expr,
 		Typ:   ctypes.Pointer(elemTyp),
 	}

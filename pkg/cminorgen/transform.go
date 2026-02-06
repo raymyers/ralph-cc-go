@@ -9,9 +9,10 @@ import (
 	"github.com/raymyers/ralph-cc/pkg/csharpminor"
 )
 
-// GlobalInfo holds size info for a global variable
+// GlobalInfo holds size and type info for a global variable
 type GlobalInfo struct {
-	Size int64
+	Size   int64
+	Signed bool
 }
 
 // Transformer handles the Csharpminor → Cminor transformation.
@@ -51,7 +52,7 @@ func (t *Transformer) TransformExpr(e csharpminor.Expr) cminor.Expr {
 		if info, isGlobal := t.globals[expr.Name]; isGlobal {
 			// Global variable read: load from address of symbol
 			return cminor.Eload{
-				Chunk: chunkForSize(info.Size),
+				Chunk: chunkForSizeAndSign(info.Size, info.Signed),
 				Addr:  cminor.Econst{Const: cminor.Oaddrsymbol{Name: expr.Name, Offset: 0}},
 			}
 		}
@@ -366,10 +367,10 @@ func TransformFunction(fn *csharpminor.Function, globals map[string]GlobalInfo) 
 func TransformProgram(prog *csharpminor.Program) *cminor.Program {
 	result := &cminor.Program{}
 
-	// Build global variable set with size info
+	// Build global variable set with size and sign info
 	globals := make(map[string]GlobalInfo)
 	for _, g := range prog.Globals {
-		globals[g.Name] = GlobalInfo{Size: g.Size}
+		globals[g.Name] = GlobalInfo{Size: g.Size, Signed: g.Signed}
 	}
 
 	// Translate global variables

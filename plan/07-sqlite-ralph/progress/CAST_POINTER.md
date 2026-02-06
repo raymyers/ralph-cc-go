@@ -17,14 +17,26 @@ This fails on:
 - `(void*)0` - same issue
 - `(const char*)str` - const qualifier not consumed
 
-## Fix
-Update `parseCast()` to:
-1. Parse qualifiers (const, volatile)
-2. Parse compound type specifier (handles struct, multi-word like `unsigned int`)
-3. Parse pointer markers (`*`)
-4. Build complete type string
+## Fix Applied
+Updated `parseCast()` in `pkg/parser/parser.go` to:
+1. Skip leading type qualifiers (const, volatile, restrict)
+2. Parse base type using `parseCompoundTypeSpecifier()` (handles struct, multi-word types)
+3. Skip type qualifiers after base type (e.g., `char const *`)
+4. Parse pointer markers (`*`) and append to type name
+5. Skip qualifiers after pointers
 
-## Current Status
-- [ ] Analyzing cast parsing code
-- [ ] Implementing fix
-- [ ] Testing with sqlite3.c
+Same fix applied to `parseSizeof()` for `sizeof(type*)` expressions.
+
+## Verification
+```c
+void *p = (void*)0;           // Works
+char *s = (char*)&x;          // Works  
+const char *cs = (const char*)s;  // Works
+return (int)p + (int)cs;      // Works
+```
+
+## Status: COMPLETE
+- [x] Analyzed cast parsing code
+- [x] Implemented fix for `parseCast()`
+- [x] Implemented fix for `parseSizeof()`
+- [x] Verified with test cases

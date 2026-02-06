@@ -28,10 +28,12 @@ func TranslateProgram(prog *clight.Program) *csharpminor.Program {
 	for _, g := range prog.Globals {
 		typ := resolveStructType(g.Type, structDefs)
 		size := sizeofType(typ)
+		signed := isSignedType(typ)
 		result.Globals = append(result.Globals, csharpminor.VarDecl{
-			Name: g.Name,
-			Size: size,
-			Init: g.Init,
+			Name:   g.Name,
+			Size:   size,
+			Init:   g.Init,
+			Signed: signed,
 		})
 	}
 
@@ -69,6 +71,20 @@ func resolveStructType(t ctypes.Type, defs map[string]ctypes.Tstruct) ctypes.Typ
 	return t
 }
 
+// isSignedType returns true if the type is signed, false if unsigned.
+// For non-integer types, defaults to true (signed behavior).
+func isSignedType(t ctypes.Type) bool {
+	switch typ := t.(type) {
+	case ctypes.Tint:
+		return typ.Sign == ctypes.Signed
+	case ctypes.Tlong:
+		return typ.Sign == ctypes.Signed
+	default:
+		// Pointers, structs, arrays, etc. are treated as signed for now
+		return true
+	}
+}
+
 // translateFunction translates a single function from Clight to Csharpminor.
 func translateFunction(fn *clight.Function, globals map[string]bool) csharpminor.Function {
 	// Build expression and statement translators
@@ -99,9 +115,11 @@ func translateFunctionWithStructs(fn *clight.Function, exprTr *ExprTranslator, s
 	for _, l := range fn.Locals {
 		typ := resolveStructType(l.Type, structDefs)
 		size := sizeofType(typ)
+		signed := isSignedType(typ)
 		locals = append(locals, csharpminor.VarDecl{
-			Name: l.Name,
-			Size: size,
+			Name:   l.Name,
+			Size:   size,
+			Signed: signed,
 		})
 	}
 

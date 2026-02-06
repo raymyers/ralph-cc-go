@@ -412,6 +412,7 @@ type VarDecl struct {
 	Size     int64  // size in bytes
 	Init     []byte // initial data (nil if uninitialized)
 	ReadOnly bool   // true for read-only data (e.g., string literals)
+	Signed   bool   // true for signed types (int8_t), false for unsigned (uint8_t)
 }
 
 // Sig represents a function signature

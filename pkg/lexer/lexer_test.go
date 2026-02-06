@@ -424,3 +424,47 @@ func TestCharLiteralInContext(t *testing.T) {
 		}
 	}
 }
+
+
+func TestHexAndOctalLiterals(t *testing.T) {
+	tests := []struct {
+		input    string
+		expected string
+	}{
+		// Hex literals
+		{"0x0", "0x0"},
+		{"0xFF", "0xFF"},
+		{"0xABCD", "0xABCD"},
+		{"0X10", "0X10"},
+		{"0xDeadBeef", "0xDeadBeef"},
+		// Hex with suffixes
+		{"0xFFu", "0xFFu"},
+		{"0xFFUL", "0xFFUL"},
+		{"0x1ll", "0x1ll"},
+		// Octal literals
+		{"0", "0"},
+		{"07", "07"},
+		{"0777", "0777"},
+		{"0123", "0123"},
+		// Octal with suffixes
+		{"0777L", "0777L"},
+		{"0123ul", "0123ul"},
+		// Decimal for comparison
+		{"123", "123"},
+		{"42u", "42u"},
+		{"1000L", "1000L"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.input, func(t *testing.T) {
+			l := New(tt.input)
+			tok := l.NextToken()
+			if tok.Type != TokenInt {
+				t.Errorf("expected INT token for %q, got %s", tt.input, tok.Type)
+			}
+			if tok.Literal != tt.expected {
+				t.Errorf("expected literal %q, got %q", tt.expected, tok.Literal)
+			}
+		})
+	}
+}

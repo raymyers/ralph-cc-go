@@ -79,12 +79,24 @@ func ClassifyVariables(locals []csharpminor.VarDecl, body csharpminor.Stmt) *Var
 }
 
 // chunkForSize returns the appropriate memory chunk for a given byte size.
+// Defaults to signed for backward compatibility.
 func chunkForSize(size int64) cminor.Chunk {
+	return chunkForSizeAndSign(size, true)
+}
+
+// chunkForSizeAndSign returns the appropriate memory chunk for a given byte size and signedness.
+func chunkForSizeAndSign(size int64, signed bool) cminor.Chunk {
 	switch size {
 	case 1:
-		return cminor.Mint8signed // default to signed for general case
+		if signed {
+			return cminor.Mint8signed
+		}
+		return cminor.Mint8unsigned
 	case 2:
-		return cminor.Mint16signed
+		if signed {
+			return cminor.Mint16signed
+		}
+		return cminor.Mint16unsigned
 	case 4:
 		return cminor.Mint32
 	case 8:

@@ -1109,6 +1109,12 @@ func TestCastExpression(t *testing.T) {
 		{"cast void", "int f() { return (void)x; }", "void"},
 		{"cast with literal", "int f() { return (int)42; }", "int"},
 		{"cast with expression", "int f() { return (int)(a + b); }", "int"},
+		// Pointer type casts
+		{"cast char pointer", "int f() { return (char*)x; }", "char *"},
+		{"cast void pointer", "int f() { return (void*)0; }", "void *"},
+		{"cast int pointer", "int f() { return (int*)p; }", "int *"},
+		{"cast unsigned int pointer", "int f() { return (unsigned int*)p; }", "unsigned *"},
+		{"cast const char pointer", "int f() { return (const char*)s; }", "char *"},
 	}
 
 	for _, tt := range tests {

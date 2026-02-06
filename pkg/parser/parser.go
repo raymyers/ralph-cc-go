@@ -3,6 +3,7 @@ package parser
 
 import (
 	"fmt"
+	"strconv"
 	"strings"
 
 	"github.com/raymyers/ralph-cc/pkg/cabs"
@@ -1686,6 +1687,12 @@ func (p *Parser) parseBlock() *cabs.Block {
 }
 
 func (p *Parser) parseStatement() cabs.Stmt {
+	// Handle empty statement: just a semicolon
+	if p.curTokenIs(lexer.TokenSemicolon) {
+		p.nextToken() // consume ';'
+		return cabs.Skip{}
+	}
+
 	// Check for declarations first (they can start with storage class, type qualifier, or type specifier)
 	if p.isStorageClassSpecifier() || p.isTypeQualifier() || p.isTypeSpecifierKeyword() {
 		return p.parseDeclarationStatement()
@@ -2393,8 +2400,28 @@ func (p *Parser) parsePrefix() cabs.Expr {
 
 func (p *Parser) parseIntegerLiteral() cabs.Expr {
 	lit := p.curToken.Literal
-	var value int64
-	fmt.Sscanf(lit, "%d", &value)
+	// Strip integer suffix (u, U, l, L, ll, LL, ul, UL, etc.)
+	cleanLit := lit
+	for len(cleanLit) > 0 {
+		last := cleanLit[len(cleanLit)-1]
+		if last == 'u' || last == 'U' || last == 'l' || last == 'L' {
+			cleanLit = cleanLit[:len(cleanLit)-1]
+		} else {
+			break
+		}
+	}
+	// ParseInt with base 0 auto-detects hex (0x), octal (0), or decimal
+	value, err := strconv.ParseInt(cleanLit, 0, 64)
+	if err != nil {
+		// Fall back to parsing as unsigned for large values
+		uval, uerr := strconv.ParseUint(cleanLit, 0, 64)
+		if uerr != nil {
+			p.addError(fmt.Sprintf("invalid integer literal: %s", lit))
+			value = 0
+		} else {
+			value = int64(uval)
+		}
+	}
 	p.nextToken() // move past the literal
 	return cabs.Constant{Value: value}
 }
@@ -2441,10 +2468,36 @@ func (p *Parser) parseGroupedExpression() cabs.Expr {
 }
 
 // parseCast parses a cast expression: (type)expr
+// Handles pointer types like (char*), (const void*), (unsigned int*)
 func (p *Parser) parseCast() cabs.Expr {
 	p.nextToken() // consume '('
-	typeName := p.curToken.Literal
-	p.nextToken() // consume type name
+
+	// Skip leading type qualifiers (const, volatile, restrict)
+	for p.isTypeQualifier() {
+		p.nextToken()
+	}
+
+	// Parse base type using the existing compound type specifier parser
+	if !p.isTypeSpecifier() {
+		p.addError(fmt.Sprintf("expected type specifier in cast, got %s", p.curToken.Type))
+		return nil
+	}
+	typeName := p.parseCompoundTypeSpecifier()
+
+	// Skip type qualifiers after base type (e.g., char const *)
+	for p.isTypeQualifier() {
+		p.nextToken()
+	}
+
+	// Handle pointer markers
+	for p.curTokenIs(lexer.TokenStar) {
+		typeName = typeName + " *"
+		p.nextToken()
+		// Skip qualifiers after pointer (const volatile *)
+		for p.isTypeQualifier() {
+			p.nextToken()
+		}
+	}
 
 	if !p.curTokenIs(lexer.TokenRParen) {
 		p.addError(fmt.Sprintf("expected ')' after type in cast, got %s", p.curToken.Type))
@@ -2481,10 +2534,36 @@ func (p *Parser) parseSizeof() cabs.Expr {
 		// Could be sizeof(type) or sizeof(expr)
 		// For now, check if the token after '(' is a type specifier
 		if p.isTypeSpecifierPeek() {
-			// sizeof(type)
+			// sizeof(type) - parse full type including pointer markers
 			p.nextToken() // consume '('
-			typeName := p.curToken.Literal
-			p.nextToken() // consume type name
+
+			// Skip leading type qualifiers (const, volatile, restrict)
+			for p.isTypeQualifier() {
+				p.nextToken()
+			}
+
+			// Parse base type using the existing compound type specifier parser
+			if !p.isTypeSpecifier() {
+				p.addError(fmt.Sprintf("expected type specifier in sizeof, got %s", p.curToken.Type))
+				return nil
+			}
+			typeName := p.parseCompoundTypeSpecifier()
+
+			// Skip type qualifiers after base type
+			for p.isTypeQualifier() {
+				p.nextToken()
+			}
+
+			// Handle pointer markers
+			for p.curTokenIs(lexer.TokenStar) {
+				typeName = typeName + " *"
+				p.nextToken()
+				// Skip qualifiers after pointer
+				for p.isTypeQualifier() {
+					p.nextToken()
+				}
+			}
+
 			if !p.curTokenIs(lexer.TokenRParen) {
 				p.addError(fmt.Sprintf("expected ')' after type in sizeof, got %s", p.curToken.Type))
 				return nil
@@ -2503,13 +2582,15 @@ func (p *Parser) parseSizeof() cabs.Expr {
 	return cabs.SizeofExpr{Expr: expr}
 }
 
-// isTypeSpecifierPeek checks if the peek token is a type specifier (for sizeof disambiguation)
+// isTypeSpecifierPeek checks if the peek token starts a type (for cast/sizeof disambiguation)
+// This includes type qualifiers since (const char*) is a valid cast
 func (p *Parser) isTypeSpecifierPeek() bool {
 	switch p.peekToken.Type {
 	case lexer.TokenInt_, lexer.TokenVoid, lexer.TokenChar, lexer.TokenShort,
 		lexer.TokenLong, lexer.TokenFloat, lexer.TokenDouble,
 		lexer.TokenSigned, lexer.TokenUnsigned, lexer.TokenStruct,
-		lexer.TokenUnion, lexer.TokenEnum:
+		lexer.TokenUnion, lexer.TokenEnum,
+		lexer.TokenConst, lexer.TokenVolatile, lexer.TokenRestrict:
 		return true
 	case lexer.TokenIdent:
 		return p.typedefs[p.peekToken.Literal]

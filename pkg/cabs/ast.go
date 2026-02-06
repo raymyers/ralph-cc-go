@@ -209,6 +209,9 @@ type For struct {
 	Body     Stmt
 }
 
+// Skip represents an empty statement (just a semicolon)
+type Skip struct{}
+
 // Break represents a break statement
 type Break struct{}
 
@@ -399,6 +402,9 @@ func (DoWhile) implCabsStmt() {}
 
 func (For) implCabsNode() {}
 func (For) implCabsStmt() {}
+
+func (Skip) implCabsNode() {}
+func (Skip) implCabsStmt() {}
 
 func (Break) implCabsNode() {}
 func (Break) implCabsStmt() {}

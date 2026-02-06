@@ -411,9 +411,35 @@ func (l *Lexer) readIdentifier() string {
 
 func (l *Lexer) readNumber() string {
 	pos := l.pos
-	for isDigit(l.ch) {
+
+	// Check for hex (0x/0X) or octal (0...)
+	if l.ch == '0' {
+		l.readChar()
+		if l.ch == 'x' || l.ch == 'X' {
+			// Hex literal: 0x...
+			l.readChar() // consume 'x'
+			for isHexDigit(l.ch) {
+				l.readChar()
+			}
+		} else if isDigit(l.ch) {
+			// Octal literal: 0...
+			for isOctalDigit(l.ch) {
+				l.readChar()
+			}
+		}
+		// else just 0
+	} else {
+		// Decimal literal
+		for isDigit(l.ch) {
+			l.readChar()
+		}
+	}
+
+	// Handle integer suffixes: u, U, l, L, ll, LL, ul, UL, etc.
+	for l.ch == 'u' || l.ch == 'U' || l.ch == 'l' || l.ch == 'L' {
 		l.readChar()
 	}
+
 	return l.input[pos:l.pos]
 }
 
@@ -451,4 +477,12 @@ func isLetter(ch byte) bool {
 
 func isDigit(ch byte) bool {
 	return '0' <= ch && ch <= '9'
+}
+
+func isHexDigit(ch byte) bool {
+	return isDigit(ch) || ('a' <= ch && ch <= 'f') || ('A' <= ch && ch <= 'F')
+}
+
+func isOctalDigit(ch byte) bool {
+	return '0' <= ch && ch <= '7'
 }

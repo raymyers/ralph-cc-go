@@ -25,6 +25,7 @@ type Allocator struct {
 	coloredNodes     RegSet    // Successfully colored nodes
 	spilledNodes     RegSet    // Nodes that must be spilled
 	selectStack      []rtl.Reg // Stack of nodes removed during simplify/spill
+	onSelectStack    RegSet    // Set of nodes on selectStack (for O(1) lookup)
 
 	// For coalescing
 	alias map[rtl.Reg]rtl.Reg // Maps coalesced node to its representative
@@ -64,6 +65,7 @@ func NewAllocator(fn *rtl.Function, graph *InterferenceGraph, liveness *Liveness
 		coalescedNodes:   NewRegSet(),
 		coloredNodes:     NewRegSet(),
 		spilledNodes:     NewRegSet(),
+		onSelectStack:    NewRegSet(),
 		alias:            make(map[rtl.Reg]rtl.Reg),
 		precoloredParams: make(map[rtl.Reg]ltl.Loc),
 	}
@@ -153,10 +155,10 @@ func (a *Allocator) buildWorklists() {
 }
 
 func (a *Allocator) degree(r rtl.Reg) int {
-	// Don't count coalesced nodes
+	// Don't count coalesced or simplified nodes
 	deg := 0
 	for neighbor := range a.graph.Edges[r] {
-		if !a.coalescedNodes.Contains(neighbor) {
+		if !a.coalescedNodes.Contains(neighbor) && !a.onSelectStack.Contains(neighbor) {
 			deg++
 		}
 	}
@@ -169,8 +171,9 @@ func (a *Allocator) simplify() {
 	r := a.simplifyWorklist[n]
 	a.simplifyWorklist = a.simplifyWorklist[:n]
 
-	// Push onto select stack
+	// Push onto select stack and mark as simplified
 	a.selectStack = append(a.selectStack, r)
+	a.onSelectStack.Add(r)
 
 	// Update neighbors' degrees
 	for neighbor := range a.graph.Edges[r] {

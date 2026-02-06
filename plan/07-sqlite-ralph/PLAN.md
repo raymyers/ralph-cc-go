@@ -59,9 +59,13 @@ Each milestone has verification command to know when complete.
 
 [x] 2.6 Handle inline struct/union definitions in fields - `struct { int x; } field;` and `struct name { ... } *ptr;`. Progress: `progress/INLINE_STRUCT_FIELD.md`
 
-[ ] 2.7 Handle flexible array members - `struct { int n; char data[]; }`. Progress: `progress/FLEX_ARRAY.md`
+[x] 2.7 Fix hex and octal literal parsing - `0xFF`, `0123` failed to parse correctly. Lexer now handles prefixes, parser uses `strconv.ParseInt` with auto-detect base. Progress: `progress/HEX_LITERALS.md`
 
-[ ] 2.8 Handle `restrict` keyword - C99 pointer qualifier. Progress: `progress/RESTRICT.md`
+[x] 2.8 Fix cast expression parsing for pointer types - `(char*)`, `(void*)`, `(const char*)` failed. Updated `parseCast()` and `parseSizeof()` to handle full type syntax. Progress: `progress/CAST_POINTER.md`
+
+[ ] 2.9 Handle flexible array members - `struct { int n; char data[]; }`. Progress: `progress/FLEX_ARRAY.md`
+
+[ ] 2.10 Handle `restrict` keyword - C99 pointer qualifier. Progress: `progress/RESTRICT.md`
 
 ---
 
