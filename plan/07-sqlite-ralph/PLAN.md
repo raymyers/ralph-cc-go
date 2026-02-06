@@ -45,6 +45,8 @@ Each milestone has verification command to know when complete.
 
 [x] 2.0c Fix function pointer returning function pointer - `void (*(*xDlSym)(params))(params)` in sqlite3_vfs struct failed to parse. Added `parseNestedFunctionPointerField()` to handle nested function pointer declarators. Progress: `progress/FP_RETURN_FP.md`
 
+[x] 2.0d Fix funcptr parameter parsing issues - Multi-word types (`unsigned int`), post-type qualifiers (`char const *`), and pointer-to-function-pointer (`void (**fn)(int)`) in function pointer parameters. Progress: `progress/FUNCPTR_MULTIWORD.md`
+
 [ ] 2.1 Audit C99/C11 features used by SQLite - Identify required features: designated initializers, compound literals, variadic macros, _Bool, etc. Progress: `progress/C_FEATURES.md`
 
 [ ] 2.2 Implement designated initializers - `struct foo x = { .field = value }`. Progress: `progress/DESIGNATED_INIT.md`

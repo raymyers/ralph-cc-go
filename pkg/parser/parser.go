@@ -576,6 +576,11 @@ func (p *Parser) parseFuncPtrParamTypes() []string {
 		// Parse type specifier
 		paramType := p.parseCompoundTypeSpecifier()
 
+		// Handle type qualifiers after base type (e.g., "char const *")
+		for p.isTypeQualifier() {
+			p.nextToken()
+		}
+
 		// Handle pointer types
 		for p.curTokenIs(lexer.TokenStar) {
 			paramType = paramType + "*"
@@ -586,9 +591,35 @@ func (p *Parser) parseFuncPtrParamTypes() []string {
 			}
 		}
 
-		// Skip parameter name if present
-		if p.curTokenIs(lexer.TokenIdent) {
-			p.nextToken()
+		// Handle function pointer parameter: type (**name)(params) or type (*name)(params)
+		if p.curTokenIs(lexer.TokenLParen) && p.peekTokenIs(lexer.TokenStar) {
+			p.nextToken() // consume '('
+			p.nextToken() // consume first '*'
+			// Count pointer levels
+			ptrCount := 1
+			for p.curTokenIs(lexer.TokenStar) {
+				ptrCount++
+				p.nextToken()
+			}
+			// Skip parameter name if present
+			if p.curTokenIs(lexer.TokenIdent) {
+				p.nextToken()
+			}
+			// Expect ')'
+			if p.curTokenIs(lexer.TokenRParen) {
+				p.nextToken()
+			}
+			// Parse inner parameter list
+			if p.curTokenIs(lexer.TokenLParen) {
+				innerParams := p.parseFuncPtrParamTypes()
+				ptrStr := strings.Repeat("*", ptrCount)
+				paramType = paramType + "(" + ptrStr + ")(" + joinParamTypes(innerParams) + ")"
+			}
+		} else {
+			// Skip parameter name if present
+			if p.curTokenIs(lexer.TokenIdent) {
+				p.nextToken()
+			}
 		}
 
 		paramTypes = append(paramTypes, paramType)
@@ -734,6 +765,11 @@ func (p *Parser) parseParameter() *cabs.Param {
 
 	typeSpec := p.parseCompoundTypeSpecifier()
 
+	// Handle type qualifiers after base type (e.g., "char const *" is same as "const char *")
+	for p.isTypeQualifier() {
+		p.nextToken()
+	}
+
 	// Handle pointer types with optional qualifiers (e.g., int * const restrict ptr)
 	for p.curTokenIs(lexer.TokenStar) {
 		typeSpec = typeSpec + "*"
@@ -775,9 +811,17 @@ func (p *Parser) parseParameter() *cabs.Param {
 // parseFunctionPointerParameter parses a function pointer parameter like:
 // int (*fn)(int, int) - named function pointer
 // int (* )(int, int) - anonymous function pointer
+// int (**fn)(int, int) - pointer to function pointer
 func (p *Parser) parseFunctionPointerParameter(returnType string) *cabs.Param {
 	p.nextToken() // consume '('
-	p.nextToken() // consume '*'
+	p.nextToken() // consume first '*'
+
+	// Count additional pointer levels (for pointer-to-function-pointer like **fn)
+	ptrCount := 1
+	for p.curTokenIs(lexer.TokenStar) {
+		ptrCount++
+		p.nextToken()
+	}
 
 	// Optional: parameter name (can be empty for anonymous function pointers)
 	name := ""
@@ -798,8 +842,10 @@ func (p *Parser) parseFunctionPointerParameter(returnType string) *cabs.Param {
 	}
 	paramList := p.parseFunctionPointerParams()
 
-	// Build the type spec: returnType(*)(params)
-	typeSpec := returnType + "(*)" + "(" + paramList + ")"
+	// Build the type spec: returnType(*...)(params)
+	// For pointer-to-function-pointer, we need (**)
+	ptrStr := strings.Repeat("*", ptrCount)
+	typeSpec := returnType + "(" + ptrStr + ")" + "(" + paramList + ")"
 
 	return &cabs.Param{TypeSpec: typeSpec, Name: name}
 }
@@ -1757,9 +1803,12 @@ func (p *Parser) parseFunctionPointerParams() string {
 		for p.isTypeQualifier() {
 			p.nextToken()
 		}
-		// Get the type specifier
+		// Get the type specifier (handles multi-word types like unsigned int)
 		if p.isTypeSpecifier() {
-			paramType = p.curToken.Literal
+			paramType = p.parseCompoundTypeSpecifier()
+		}
+		// Handle type qualifiers after base type (e.g., "char const *" is same as "const char *")
+		for p.isTypeQualifier() {
 			p.nextToken()
 		}
 		// Handle pointers with optional qualifiers
