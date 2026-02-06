@@ -62,6 +62,14 @@ Example:
 **Check**: In Csharpminor output, verify stores use correct chunk (int8s, int16s, int32)
 **Location**: `pkg/clightgen/program.go` - `translateFunctionWithStructsAndGlobals`
 
+### Register allocation clobbers parameters (PARTIAL FIX)
+**Symptom**: Functions with many parameters return wrong values; gcc works correctly
+**Root Cause**: Parameters arrive in X0-X7 but local variable initialization can overwrite these registers before the parameter is used
+**Attempted Fix**: Add conservative interference edges in `interference.go` between used parameters and all other pseudo-registers
+**Current Status**: Fix is partial - helps some cases but doesn't fully solve the issue
+**Debugging**: Compare `--dltl` output - check if parameter registers (X0-X7) are written before their last use
+**Location**: `pkg/regalloc/interference.go` - see `BuildInterferenceGraph` parameter handling
+
 ## Test Data
 
 Test files in `testdata/example-c/` cover:

@@ -14,18 +14,15 @@ func TransformFunction(rtlFn *rtl.Function) *ltl.Function {
 
 	ltlFn := ltl.NewFunction(rtlFn.Name, rtlFn.Sig)
 	ltlFn.Stacksize = rtlFn.Stacksize + allocation.StackSize
-	ltlFn.Entrypoint = ltl.Node(rtlFn.Entrypoint)
 
-	// Transform parameter locations
-	for _, param := range rtlFn.Params {
-		if loc, ok := allocation.RegToLoc[param]; ok {
-			ltlFn.Params = append(ltlFn.Params, loc)
-		}
+	// Build parameter entry locations (X0-X7 for first 8 args)
+	// These are the locations where arguments arrive
+	for i := range rtlFn.Params {
+		ltlFn.Params = append(ltlFn.Params, ArgLocation(i, false))
 	}
 
 	// Group instructions into basic blocks
 	// For simplicity, we create one block per RTL node initially
-	// (CompCert's Linearize pass will optimize this later)
 	sortedNodes := getSortedNodes(rtlFn)
 	for _, node := range sortedNodes {
 		instr := rtlFn.Code[node]
@@ -33,6 +30,33 @@ func TransformFunction(rtlFn *rtl.Function) *ltl.Function {
 		ltlFn.Code[ltl.Node(node)] = ltlBlock
 	}
 
+	// At function entry, we need to copy parameters from their argument
+	// registers (X0-X7) to their allocated locations.
+	// This is necessary because the register allocator may assign other
+	// variables to X0-X7, which could clobber parameters before they're used.
+	entryBlock := ltlFn.Code[ltl.Node(rtlFn.Entrypoint)]
+	if entryBlock != nil {
+		var paramMoves []ltl.Instruction
+
+		// Generate moves from argument registers to allocated locations
+		argLocs := make([]ltl.Loc, len(rtlFn.Params))
+		allocLocs := make([]ltl.Loc, len(rtlFn.Params))
+		for i, param := range rtlFn.Params {
+			argLocs[i] = ArgLocation(i, false)
+			allocLocs[i] = allocation.RegToLoc[param]
+		}
+		paramMoves = resolveParallelMoves(argLocs, allocLocs)
+
+		// Prepend parameter moves to the entry block
+		if len(paramMoves) > 0 {
+			newBody := make([]ltl.Instruction, 0, len(paramMoves)+len(entryBlock.Body))
+			newBody = append(newBody, paramMoves...)
+			newBody = append(newBody, entryBlock.Body...)
+			entryBlock.Body = newBody
+		}
+	}
+
+	ltlFn.Entrypoint = ltl.Node(rtlFn.Entrypoint)
 	return ltlFn
 }
 
@@ -220,4 +244,79 @@ func TransformProgram(rtlProg *rtl.Program) *ltl.Program {
 	}
 
 	return ltlProg
+}
+
+// resolveParallelMoves generates a sequence of moves that correctly implements
+// a parallel assignment from srcLocs to dstLocs. It uses a simple but correct
+// strategy: save all source values that would be clobbered, then do all moves.
+func resolveParallelMoves(srcLocs, dstLocs []ltl.Loc) []ltl.Instruction {
+	n := len(srcLocs)
+	if n == 0 {
+		return nil
+	}
+
+	// Find moves that are actually needed
+	type move struct {
+		src, dst ltl.Loc
+	}
+	var moves []move
+	for i := 0; i < n; i++ {
+		if srcLocs[i] != dstLocs[i] {
+			moves = append(moves, move{srcLocs[i], dstLocs[i]})
+		}
+	}
+
+	if len(moves) == 0 {
+		return nil
+	}
+
+	// Check which sources will be clobbered by destinations
+	dstSet := make(map[ltl.Loc]bool)
+	for _, m := range moves {
+		dstSet[m.dst] = true
+	}
+
+	// For each source that is also a destination (potential clobber),
+	// we need to save it first. Use X8-X15 as temporary storage.
+	tmpIndex := 0
+	savedLocs := make(map[ltl.Loc]ltl.Loc) // original loc -> temp loc
+	var result []ltl.Instruction
+
+	// First pass: save any source that would be clobbered
+	for _, m := range moves {
+		if dstSet[m.src] {
+			if _, alreadySaved := savedLocs[m.src]; !alreadySaved {
+				// Allocate a temp register (X8, X9, ... X15)
+				tmp := ltl.R{Reg: ltl.MReg(ltl.X8 + ltl.MReg(tmpIndex))}
+				tmpIndex++
+				if tmpIndex > 8 {
+					// Ran out of temp registers - fall back to simple sequential
+					// This should rarely happen
+					break
+				}
+				// Save the source value
+				result = append(result, ltl.Lop{
+					Op:   rtl.Omove{},
+					Args: []ltl.Loc{m.src},
+					Dest: tmp,
+				})
+				savedLocs[m.src] = tmp
+			}
+		}
+	}
+
+	// Second pass: emit all moves, using saved temps where needed
+	for _, m := range moves {
+		src := m.src
+		if savedSrc, ok := savedLocs[m.src]; ok {
+			src = savedSrc
+		}
+		result = append(result, ltl.Lop{
+			Op:   rtl.Omove{},
+			Args: []ltl.Loc{src},
+			Dest: m.dst,
+		})
+	}
+
+	return result
 }

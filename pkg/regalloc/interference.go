@@ -109,7 +109,10 @@ func (g *InterferenceGraph) RemoveNode(r rtl.Reg) {
 func BuildInterferenceGraph(fn *rtl.Function, liveness *LivenessInfo) *InterferenceGraph {
 	g := NewInterferenceGraph()
 
-	// First, add all registers as nodes
+	// First, add all registers as nodes (including parameters!)
+	for _, param := range fn.Params {
+		g.AddNode(param)
+	}
 	for node, def := range liveness.Def {
 		for r := range def {
 			g.AddNode(r)
@@ -143,6 +146,31 @@ func BuildInterferenceGraph(fn *rtl.Function, liveness *LivenessInfo) *Interfere
 		if isCall(instr) {
 			for liveReg := range liveOut {
 				g.LiveAcrossCalls.Add(liveReg)
+			}
+		}
+	}
+
+	// IMPORTANT: Parameters need special handling for interference.
+	// Parameters arrive in specific registers (X0-X7) and if they're used later,
+	// no other variable can use those registers until the parameter's last use.
+	// Add interference between used parameters and ALL other pseudo-registers.
+	for _, param := range fn.Params {
+		// Check if this parameter is used anywhere
+		var paramUsed bool
+		for _, use := range liveness.Use {
+			if use.Contains(param) {
+				paramUsed = true
+				break
+			}
+		}
+		if !paramUsed {
+			continue
+		}
+
+		// Add interference with ALL other registers (conservative approach)
+		for other := range g.Nodes {
+			if other != param {
+				g.AddEdge(param, other)
 			}
 		}
 	}
