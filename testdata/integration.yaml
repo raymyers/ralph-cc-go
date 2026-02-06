@@ -70,6 +70,11 @@ tests:
       typedef int myint;
       myint f() { return 0; }
 
+  - name: "typedef with const qualifier"
+    input: |
+      typedef const char *cstr;
+      cstr f() { return "hello"; }
+
   - name: "enum"
     input: |
       enum Color { RED, GREEN, BLUE };

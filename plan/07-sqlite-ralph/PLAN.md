@@ -39,6 +39,8 @@ Each milestone has verification command to know when complete.
 
 ### Tasks
 
+[x] 2.0 Fix typedef with leading qualifiers - `typedef const char *name;` failed because parser didn't handle qualifiers before type specifiers. Progress: `progress/TYPEDEF_QUALIFIERS.md`
+
 [ ] 2.1 Audit C99/C11 features used by SQLite - Identify required features: designated initializers, compound literals, variadic macros, _Bool, etc. Progress: `progress/C_FEATURES.md`
 
 [ ] 2.2 Implement designated initializers - `struct foo x = { .field = value }`. Progress: `progress/DESIGNATED_INIT.md`

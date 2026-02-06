@@ -207,6 +207,11 @@ func TestIntegrationDParseBasic(t *testing.T) {
 			input: "typedef int myint;",
 			expect: []string{"typedef", "int", "myint"},
 		},
+		{
+			name:  "typedef with const",
+			input: "typedef const char *cstr;",
+			expect: []string{"typedef", "const", "char*", "cstr"},
+		},
 	}
 
 	for _, tc := range tests {

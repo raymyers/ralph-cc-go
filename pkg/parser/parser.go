@@ -3,6 +3,7 @@ package parser
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/raymyers/ralph-cc/pkg/cabs"
 	"github.com/raymyers/ralph-cc/pkg/lexer"
@@ -740,6 +741,14 @@ func (p *Parser) parseFunctionPointerParameter(returnType string) *cabs.Param {
 func (p *Parser) parseTypedef() cabs.Definition {
 	p.nextToken() // consume 'typedef'
 
+	// Collect leading type qualifiers (const, volatile, restrict)
+	// e.g., typedef const char *name;
+	var leadingQualifiers []string
+	for p.isTypeQualifier() {
+		leadingQualifiers = append(leadingQualifiers, p.curToken.Literal)
+		p.nextToken()
+	}
+
 	if !p.isTypeSpecifier() {
 		p.addError(fmt.Sprintf("expected type specifier in typedef, got %s", p.curToken.Type))
 		return nil
@@ -913,6 +922,11 @@ func (p *Parser) parseTypedef() cabs.Definition {
 
 	// Regular typedef (not inline struct/union/enum)
 	typeSpec := p.parseCompoundTypeSpecifier()
+
+	// Prepend any leading qualifiers (e.g., const, volatile)
+	if len(leadingQualifiers) > 0 {
+		typeSpec = strings.Join(leadingQualifiers, " ") + " " + typeSpec
+	}
 
 	// Handle pointer types with optional qualifiers
 	for p.curTokenIs(lexer.TokenStar) {
