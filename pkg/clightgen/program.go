@@ -46,23 +46,16 @@ func TranslateProgram(prog *cabs.Program) *clight.Program {
 		}
 	}
 
-	// Second pass: translate functions and global variables
+	// Second pass: collect global variable types first
+	globalTypes := make(map[string]ctypes.Type)
 	for _, def := range prog.Definitions {
-		switch d := def.(type) {
-		case cabs.FunDef:
-			// Skip function declarations (prototypes) - only process definitions with bodies
-			if d.Body == nil {
-				continue
-			}
-			fn := translateFunctionWithStructs(&d, structDefs)
-			result.Functions = append(result.Functions, fn)
-		case cabs.VarDef:
-			// Global variable definition
+		if d, ok := def.(cabs.VarDef); ok {
 			// Skip extern declarations without initializer (they're just declarations)
 			if d.StorageClass == "extern" && d.Initializer == nil {
 				continue
 			}
 			typ := TypeFromString(d.TypeSpec)
+			globalTypes[d.Name] = typ
 			var init []byte
 			if d.Initializer != nil {
 				init = evaluateConstantInitializer(d.Initializer, typ)
@@ -75,18 +68,37 @@ func TranslateProgram(prog *cabs.Program) *clight.Program {
 		}
 	}
 
+	// Third pass: translate functions with global type information
+	for _, def := range prog.Definitions {
+		if d, ok := def.(cabs.FunDef); ok {
+			// Skip function declarations (prototypes) - only process definitions with bodies
+			if d.Body == nil {
+				continue
+			}
+			fn := translateFunctionWithStructsAndGlobals(&d, structDefs, globalTypes)
+			result.Functions = append(result.Functions, fn)
+		}
+	}
+
 	return result
 }
 
 // translateFunction transforms a Cabs function to a Clight function.
-// Deprecated: use translateFunctionWithStructs instead.
+// Deprecated: use translateFunctionWithStructsAndGlobals instead.
 func translateFunction(fn *cabs.FunDef) clight.Function {
-	return translateFunctionWithStructs(fn, nil)
+	return translateFunctionWithStructsAndGlobals(fn, nil, nil)
 }
 
 // translateFunctionWithStructs transforms a Cabs function to a Clight function,
 // using the provided struct definitions for field resolution.
+// Deprecated: use translateFunctionWithStructsAndGlobals instead.
 func translateFunctionWithStructs(fn *cabs.FunDef, structDefs map[string]ctypes.Tstruct) clight.Function {
+	return translateFunctionWithStructsAndGlobals(fn, structDefs, nil)
+}
+
+// translateFunctionWithStructsAndGlobals transforms a Cabs function to a Clight function,
+// using the provided struct definitions for field resolution and global variable types.
+func translateFunctionWithStructsAndGlobals(fn *cabs.FunDef, structDefs map[string]ctypes.Tstruct, globalTypes map[string]ctypes.Type) clight.Function {
 	// Create transformers
 	simplExpr := simplexpr.New()
 	simplLoc := simpllocals.New()
@@ -94,6 +106,11 @@ func translateFunctionWithStructs(fn *cabs.FunDef, structDefs map[string]ctypes.
 	// Register struct definitions for field resolution
 	for _, s := range structDefs {
 		simplExpr.SetStructDef(s)
+	}
+
+	// Register global variable types
+	for name, typ := range globalTypes {
+		simplExpr.SetType(name, typ)
 	}
 
 	// Set up type environment for parameters
@@ -122,6 +139,10 @@ func translateFunctionWithStructs(fn *cabs.FunDef, structDefs map[string]ctypes.
 	// Re-register struct definitions after reset
 	for _, s := range structDefs {
 		simplExpr.SetStructDef(s)
+	}
+	// Re-register global types after reset
+	for name, typ := range globalTypes {
+		simplExpr.SetType(name, typ)
 	}
 	for _, param := range fn.Params {
 		simplExpr.SetType(param.Name, TypeFromString(param.TypeSpec))
@@ -185,6 +206,18 @@ func collectLocalsFromStmt(item cabs.Stmt, locals *[]clight.VarDecl, simplExpr *
 			// Resolve struct types to include field information
 			if st, ok := typ.(ctypes.Tstruct); ok {
 				typ = simplExpr.ResolveStruct(st)
+			}
+			// Handle array declarations
+			if len(decl.ArrayDims) > 0 {
+				// Build array type from innermost to outermost dimension
+				for i := len(decl.ArrayDims) - 1; i >= 0; i-- {
+					dim := decl.ArrayDims[i]
+					size := int64(-1) // default: incomplete array
+					if c, ok := dim.(cabs.Constant); ok {
+						size = c.Value
+					}
+					typ = ctypes.Tarray{Elem: typ, Size: size}
+				}
 			}
 			simplExpr.SetType(decl.Name, typ)
 			*locals = append(*locals, clight.VarDecl{
