@@ -85,7 +85,18 @@ func (t *ExprTranslator) TranslateExpr(e clight.Expr) csharpminor.Expr {
 }
 
 // translateConstInt translates an integer constant.
+// Uses Olongconst if the type is long (or value doesn't fit in int32).
 func (t *ExprTranslator) translateConstInt(e clight.Econst_int) csharpminor.Expr {
+	// Check if the type is long or if value doesn't fit in int32
+	if _, isLong := e.Typ.(ctypes.Tlong); isLong {
+		return csharpminor.Econst{Const: csharpminor.Olongconst{Value: e.Value}}
+	}
+	// Check if value fits in int32 range
+	const maxInt32 = 2147483647
+	const minInt32 = -2147483648
+	if e.Value < minInt32 || e.Value > maxInt32 {
+		return csharpminor.Econst{Const: csharpminor.Olongconst{Value: e.Value}}
+	}
 	return csharpminor.Econst{Const: csharpminor.Ointconst{Value: int32(e.Value)}}
 }
 
@@ -150,6 +161,11 @@ func (t *ExprTranslator) translateBinop(e clight.Ebinop) csharpminor.Expr {
 
 	// For comparison operators, use Ecmp
 	if IsComparisonOp(e.Op) {
+		// For long comparisons (Ocmpl, Ocmplu), ensure operands are extended to 64-bit
+		if op == csharpminor.Ocmpl || op == csharpminor.Ocmplu {
+			left = t.extendToLong(left, leftType, op == csharpminor.Ocmpl)
+			right = t.extendToLong(right, rightType, op == csharpminor.Ocmpl)
+		}
 		return csharpminor.Ecmp{
 			Op:    op,
 			Cmp:   cmp,
@@ -159,6 +175,29 @@ func (t *ExprTranslator) translateBinop(e clight.Ebinop) csharpminor.Expr {
 	}
 
 	return csharpminor.Ebinop{Op: op, Left: left, Right: right}
+}
+
+// extendToLong inserts a cast to extend a smaller integer type to long if needed.
+// signedExtend indicates whether to use signed or unsigned extension.
+func (t *ExprTranslator) extendToLong(e csharpminor.Expr, typ ctypes.Type, signedExtend bool) csharpminor.Expr {
+	// Already a long type - no extension needed
+	if _, isLong := typ.(ctypes.Tlong); isLong {
+		return e
+	}
+	// For int types (32-bit), extend to long
+	if ttyp, ok := typ.(ctypes.Tint); ok {
+		if signedExtend && ttyp.Sign != ctypes.Unsigned {
+			return csharpminor.Eunop{Op: csharpminor.Olongofint, Arg: e}
+		}
+		return csharpminor.Eunop{Op: csharpminor.Olongofintu, Arg: e}
+	}
+	// For smaller types (char, short), they should already be at least int after
+	// arithmetic operations due to C integer promotion rules. But if we get a 
+	// smaller type, use longofint which will work since char/short fit in int.
+	if signedExtend {
+		return csharpminor.Eunop{Op: csharpminor.Olongofint, Arg: e}
+	}
+	return csharpminor.Eunop{Op: csharpminor.Olongofintu, Arg: e}
 }
 
 // translateCast translates a type cast.

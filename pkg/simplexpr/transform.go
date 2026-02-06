@@ -141,17 +141,24 @@ func HasSideEffects(e cabs.Expr) bool {
 func (t *Transformer) TransformExpr(e cabs.Expr) TransformResult {
 	switch expr := e.(type) {
 	case cabs.Constant:
-		// Determine type based on value range:
-		// - Values in [INT_MIN, INT_MAX] -> signed int
-		// - Values in (INT_MAX, UINT_MAX] -> unsigned int
-		// This follows C99 rules for decimal integer literals without suffix
-		const intMax = 2147483647  // 2^31 - 1
-		const intMin = -2147483648 // -2^31
+		// Determine type based on value range following C99/C11 rules for
+		// decimal integer literals without suffix. The sequence is:
+		// 1. int
+		// 2. long int  
+		// 3. long long int
+		// Note: decimal literals without 'u' suffix are NEVER unsigned
+		const intMax = 2147483647   // 2^31 - 1
+		const intMin = -2147483648  // -2^31
+		const longMax = 9223372036854775807 // 2^63 - 1 (assuming LP64)
 		var typ ctypes.Type
 		if expr.Value >= intMin && expr.Value <= intMax {
 			typ = ctypes.Int()
+		} else if expr.Value >= intMin && expr.Value <= longMax {
+			// Value doesn't fit in int but fits in long long (signed)
+			typ = ctypes.Long()
 		} else {
-			typ = ctypes.UInt()
+			// Value too large - would be undefined behavior, use unsigned long long
+			typ = ctypes.Tlong{Sign: ctypes.Unsigned}
 		}
 		return TransformResult{
 			Expr: clight.Econst_int{Value: expr.Value, Typ: typ},

@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io"
 	"runtime"
+	"strings"
 )
 
 // Printer outputs ARM64 assembly in GNU as syntax
@@ -430,17 +431,27 @@ func (p *Printer) printInstruction(inst Instruction) {
 		fmt.Fprintf(p.w, "\tadr\t%s, %s\n", regName64(i.Rd), i.Target)
 	case ADRP:
 		if p.isDarwin && i.IsSymbol {
-			fmt.Fprintf(p.w, "\tadrp\t%s, _%s@PAGE\n", regName64(i.Rd), i.Target)
+			// Local labels (starting with '.') don't get underscore prefix
+			if strings.HasPrefix(string(i.Target), ".") {
+				fmt.Fprintf(p.w, "\tadrp\t%s, %s@PAGE\n", regName64(i.Rd), i.Target)
+			} else {
+				fmt.Fprintf(p.w, "\tadrp\t%s, _%s@PAGE\n", regName64(i.Rd), i.Target)
+			}
 		} else {
 			fmt.Fprintf(p.w, "\tadrp\t%s, %s\n", regName64(i.Rd), i.Target)
 		}
 	case ADDpageoff:
 		if p.isDarwin {
+			// Local labels (starting with '.') don't get underscore prefix
+			prefix := "_"
+			if strings.HasPrefix(string(i.Symbol), ".") {
+				prefix = ""
+			}
 			if i.Offset == 0 {
-				fmt.Fprintf(p.w, "\tadd\t%s, %s, _%s@PAGEOFF\n", regName64(i.Rd), regName64(i.Rn), i.Symbol)
+				fmt.Fprintf(p.w, "\tadd\t%s, %s, %s%s@PAGEOFF\n", regName64(i.Rd), regName64(i.Rn), prefix, i.Symbol)
 			} else {
 				// Symbol + offset: need to add both
-				fmt.Fprintf(p.w, "\tadd\t%s, %s, _%s@PAGEOFF+%d\n", regName64(i.Rd), regName64(i.Rn), i.Symbol, i.Offset)
+				fmt.Fprintf(p.w, "\tadd\t%s, %s, %s%s@PAGEOFF+%d\n", regName64(i.Rd), regName64(i.Rn), prefix, i.Symbol, i.Offset)
 			}
 		} else {
 			fmt.Fprintf(p.w, "\tadd\t%s, %s, #%d\n", regName64(i.Rd), regName64(i.Rn), i.Offset)

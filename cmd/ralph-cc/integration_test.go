@@ -532,7 +532,7 @@ func convertToMacOS(asm string) string {
 		if strings.HasSuffix(trimmed, ":") && !strings.HasPrefix(trimmed, ".") {
 			// This is a label - add underscore if it's a function
 			label := strings.TrimSuffix(trimmed, ":")
-			if !strings.HasPrefix(label, ".L") { // Not a local label
+			if !strings.HasPrefix(label, ".L") && !strings.HasPrefix(label, "_") { // Not a local label or already prefixed
 				line = "_" + trimmed
 			}
 		}
@@ -548,8 +548,8 @@ func convertToMacOS(asm string) string {
 			}
 		}
 
-		// Handle adrp/add @PAGE/@PAGEOFF for macOS
-		if strings.Contains(line, "adrp") && strings.Contains(line, ".Lstr") {
+		// Handle adrp/add @PAGE/@PAGEOFF for macOS (skip if already present)
+		if strings.Contains(line, "adrp") && strings.Contains(line, ".Lstr") && !strings.Contains(line, "@PAGE") {
 			// adrp x0, .Lstr0 -> adrp x0, .Lstr0@PAGE
 			parts := strings.Fields(line)
 			if len(parts) >= 3 && strings.HasPrefix(parts[2], ".Lstr") {
@@ -558,7 +558,7 @@ func convertToMacOS(asm string) string {
 				line = parts[0] + "\t" + reg + ", " + parts[2] + "@PAGE"
 			}
 		}
-		if strings.Contains(line, "add") && strings.Contains(line, "#0") && strings.Contains(line, ".Lstr") {
+		if strings.Contains(line, "add") && strings.Contains(line, "#0") && strings.Contains(line, ".Lstr") && !strings.Contains(line, "@PAGEOFF") {
 			// add x0, x0, #0 after adrp for .Lstr should use @PAGEOFF
 			// This is a simplified detection - look for pattern
 		}
