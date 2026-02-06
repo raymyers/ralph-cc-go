@@ -75,7 +75,7 @@ func (t *transformer) transform() *mach.Function {
 	}
 
 	// 6b. Generate parameter copies (move from incoming regs to allocated locations)
-	paramCopies := GenerateParamCopies(t.linearFn.Params)
+	paramCopies := GenerateParamCopies(t.linearFn.Params, t.slotTrans)
 	for _, inst := range paramCopies {
 		machFn.Append(inst)
 	}

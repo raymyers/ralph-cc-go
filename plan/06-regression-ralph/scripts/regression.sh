@@ -19,6 +19,7 @@ trap 'rm -rf "$WORK_DIR"' EXIT
 # All known seeds from csmith-reports findings
 # Format: TYPE:SEED where TYPE is crash, mismatch, or fail_compile
 KNOWN_ISSUES=(
+    "crash:102911892"
     "crash:1093823871"
     "crash:114128045"
     "crash:1176020246"

@@ -9,10 +9,22 @@ import (
 	"github.com/raymyers/ralph-cc/pkg/rtl"
 )
 
+// Helper to create a minimal SlotTranslator for tests
+func testSlotTranslator() *SlotTranslator {
+	layout := &FrameLayout{
+		CalleeSaveSize: 16,
+		LocalSize:      16,
+		OutgoingSize:   0,
+		LocalOffset:    -32, // -CalleeSaveSize - LocalSize
+		TotalSize:      48,  // 16 + 16 + 16 (FP/LR)
+	}
+	return NewSlotTranslator(layout)
+}
+
 func TestGenerateParamCopies(t *testing.T) {
 	// Test 1: Parameter in X19 (callee-saved), should copy from X0
 	params := []ltl.Loc{ltl.R{Reg: ltl.X19}}
-	copies := GenerateParamCopies(params)
+	copies := GenerateParamCopies(params, testSlotTranslator())
 
 	if len(copies) != 1 {
 		t.Fatalf("expected 1 copy instruction, got %d", len(copies))
@@ -34,7 +46,7 @@ func TestGenerateParamCopiesMultiple(t *testing.T) {
 	// Test: Two parameters in callee-saved registers (no conflict)
 	// First in X20, second in X19
 	params := []ltl.Loc{ltl.R{Reg: ltl.X20}, ltl.R{Reg: ltl.X19}}
-	copies := GenerateParamCopies(params)
+	copies := GenerateParamCopies(params, testSlotTranslator())
 
 	if len(copies) != 2 {
 		t.Fatalf("expected 2 copy instructions, got %d", len(copies))
@@ -72,7 +84,7 @@ func TestGenerateParamCopiesCycle(t *testing.T) {
 	// Test: Two parameters with a cycle (first in X1, second in X0)
 	// This requires breaking the cycle with a temp register
 	params := []ltl.Loc{ltl.R{Reg: ltl.X1}, ltl.R{Reg: ltl.X0}}
-	copies := GenerateParamCopies(params)
+	copies := GenerateParamCopies(params, testSlotTranslator())
 
 	// Should have at least 2 instructions (possibly 3 with temp)
 	if len(copies) < 2 {

@@ -170,7 +170,10 @@ const paramCopyTempReg = ltl.X8
 // Handles the parallel move problem: when parameters are allocated to registers
 // that conflict with incoming argument registers, we need to be careful about
 // the order of moves (or use a temporary register to break cycles).
-func GenerateParamCopies(params []ltl.Loc) []mach.Instruction {
+//
+// The slotTrans parameter is used to translate abstract stack slot offsets to
+// concrete FP-relative offsets when parameters are spilled to the stack.
+func GenerateParamCopies(params []ltl.Loc, slotTrans *SlotTranslator) []mach.Instruction {
 	// Build a map of moves needed: dest -> src (incoming reg)
 	moves := make(map[ltl.MReg]ltl.MReg)
 	var stackMoves []mach.Instruction
@@ -190,9 +193,11 @@ func GenerateParamCopies(params []ltl.Loc) []mach.Instruction {
 
 		case ltl.S:
 			// Stack moves can be done immediately - no conflict possible
+			// Translate the abstract slot offset to concrete FP-relative offset
+			concreteOfs := slotTrans.TranslateSlotOffset(loc.Slot, loc.Ofs)
 			stackMoves = append(stackMoves, mach.Msetstack{
 				Src: incomingReg,
-				Ofs: loc.Ofs,
+				Ofs: concreteOfs,
 				Ty:  loc.Ty,
 			})
 		}
