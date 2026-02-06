@@ -251,18 +251,69 @@ func isUnsigned(t ctypes.Type) bool {
 }
 
 // translateCmpBoth maps comparison to typed comparison operator,
-// checking both operand types. If either is unsigned, use unsigned comparison.
+// following C's usual arithmetic conversions:
+// - If both types fit in signed int (after promotion), use signed comparison
+// - Only use unsigned comparison when the common type is unsigned
 func translateCmpBoth(left, right ctypes.Type) csharpminor.BinaryOp {
-	// If either operand is unsigned, use unsigned comparison
-	if isUnsigned(left) || isUnsigned(right) {
-		switch left.(type) {
-		case ctypes.Tlong:
-			return csharpminor.Ocmplu
-		default:
-			return csharpminor.Ocmpu
-		}
+	// Handle float types - use the left operand type for float comparison
+	if _, ok := left.(ctypes.Tfloat); ok {
+		return translateCmp(left)
 	}
-	return translateCmp(left)
+	if _, ok := right.(ctypes.Tfloat); ok {
+		return translateCmp(right)
+	}
+
+	// Handle pointer types - always use unsigned long comparison
+	if _, ok := left.(ctypes.Tpointer); ok {
+		return csharpminor.Ocmplu
+	}
+	if _, ok := right.(ctypes.Tpointer); ok {
+		return csharpminor.Ocmplu
+	}
+
+	// Check if either is a long type
+	_, leftIsLong := left.(ctypes.Tlong)
+	_, rightIsLong := right.(ctypes.Tlong)
+
+	if leftIsLong || rightIsLong {
+		// If either is long, check if unsigned comparison is needed
+		if isUnsigned(left) && isUnsigned(right) {
+			return csharpminor.Ocmplu
+		}
+		// If one is unsigned long and the other can't represent all unsigned long values
+		if (leftIsLong && isUnsigned(left)) || (rightIsLong && isUnsigned(right)) {
+			// Check if the signed type can represent all values of unsigned type
+			// For simplicity, if one is unsigned long, use unsigned long comparison
+			if (leftIsLong && isUnsigned(left)) || (rightIsLong && isUnsigned(right)) {
+				return csharpminor.Ocmplu
+			}
+		}
+		return csharpminor.Ocmpl
+	}
+
+	// For int-sized types, check if both fit in signed int (32-bit)
+	// Types smaller than int (char, short, int8, int16, uint8, uint16) all fit in signed int
+	// So only use unsigned comparison if we have uint32 or larger
+	leftNeedsUnsigned := needsUnsignedInt(left)
+	rightNeedsUnsigned := needsUnsignedInt(right)
+
+	if leftNeedsUnsigned || rightNeedsUnsigned {
+		return csharpminor.Ocmpu
+	}
+	return csharpminor.Ocmp
+}
+
+// needsUnsignedInt returns true if the type requires unsigned int comparison
+// (i.e., it's an unsigned type that doesn't fit in signed int)
+func needsUnsignedInt(t ctypes.Type) bool {
+	switch typ := t.(type) {
+	case ctypes.Tint:
+		// uint32 doesn't fit in int32, so needs unsigned comparison
+		return typ.Sign == ctypes.Unsigned && typ.Size == ctypes.I32
+	case ctypes.Tlong:
+		return typ.Sign == ctypes.Unsigned
+	}
+	return false
 }
 
 // translateCmp maps comparison to typed comparison operator

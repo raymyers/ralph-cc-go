@@ -58,10 +58,20 @@ func (p *Printer) PrintProgram(prog *Program) {
 	}
 }
 
+// log2 returns the base-2 logarithm of n (assumes n is a power of 2)
+func log2(n int) int {
+	r := 0
+	for n > 1 {
+		n >>= 1
+		r++
+	}
+	return r
+}
+
 func (p *Printer) printGlobal(g GlobVar) {
 	fmt.Fprintf(p.w, "\t.global\t%s\n", g.Name)
 	if g.Align > 1 {
-		fmt.Fprintf(p.w, "\t.align\t%d\n", g.Align)
+		fmt.Fprintf(p.w, "\t.p2align\t%d\n", log2(g.Align))
 	}
 	fmt.Fprintf(p.w, "%s:\n", g.Name)
 	if len(g.Init) > 0 {
@@ -81,7 +91,7 @@ func (p *Printer) printRodataGlobal(g GlobVar) {
 		fmt.Fprintf(p.w, "\t.global\t%s\n", g.Name)
 	}
 	if g.Align > 1 {
-		fmt.Fprintf(p.w, "\t.align\t%d\n", g.Align)
+		fmt.Fprintf(p.w, "\t.p2align\t%d\n", log2(g.Align))
 	}
 	fmt.Fprintf(p.w, "%s:\n", g.Name)
 	if len(g.Init) > 0 {
