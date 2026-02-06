@@ -168,8 +168,8 @@ func translateFunctionWithStructsAndGlobals(fn *cabs.FunDef, structDefs map[stri
 
 	// Collect temp types
 	var temps []ctypes.Type
-	temps = append(temps, simplExpr.TempTypes()...)
 	temps = append(temps, simplLoc.TempTypes()...)
+	temps = append(temps, simplExpr.TempTypes()...)
 
 	// Build params
 	params := make([]clight.VarDecl, len(fn.Params))

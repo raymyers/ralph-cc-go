@@ -77,19 +77,20 @@ func TranslateBinaryOp(op clight.BinaryOp, leftType, rightType ctypes.Type) (csh
 		return translateShl(leftType), csharpminor.Ceq
 	case clight.Oshr:
 		return translateShr(leftType), csharpminor.Ceq
-	// Comparison operators
+	// Comparison operators - check both operand types for signedness
+	// If either operand is unsigned, use unsigned comparison (C standard)
 	case clight.Oeq:
-		return translateCmp(leftType), csharpminor.Ceq
+		return translateCmpBoth(leftType, rightType), csharpminor.Ceq
 	case clight.One:
-		return translateCmp(leftType), csharpminor.Cne
+		return translateCmpBoth(leftType, rightType), csharpminor.Cne
 	case clight.Olt:
-		return translateCmp(leftType), csharpminor.Clt
+		return translateCmpBoth(leftType, rightType), csharpminor.Clt
 	case clight.Ole:
-		return translateCmp(leftType), csharpminor.Cle
+		return translateCmpBoth(leftType, rightType), csharpminor.Cle
 	case clight.Ogt:
-		return translateCmp(leftType), csharpminor.Cgt
+		return translateCmpBoth(leftType, rightType), csharpminor.Cgt
 	case clight.Oge:
-		return translateCmp(leftType), csharpminor.Cge
+		return translateCmpBoth(leftType, rightType), csharpminor.Cge
 	}
 	panic("unhandled binary operator")
 }
@@ -236,6 +237,32 @@ func translateShr(t ctypes.Type) csharpminor.BinaryOp {
 		return csharpminor.Oshrl
 	}
 	return csharpminor.Oshr // default signed
+}
+
+// isUnsigned returns true if the type is an unsigned integer type
+func isUnsigned(t ctypes.Type) bool {
+	switch typ := t.(type) {
+	case ctypes.Tint:
+		return typ.Sign == ctypes.Unsigned
+	case ctypes.Tlong:
+		return typ.Sign == ctypes.Unsigned
+	}
+	return false
+}
+
+// translateCmpBoth maps comparison to typed comparison operator,
+// checking both operand types. If either is unsigned, use unsigned comparison.
+func translateCmpBoth(left, right ctypes.Type) csharpminor.BinaryOp {
+	// If either operand is unsigned, use unsigned comparison
+	if isUnsigned(left) || isUnsigned(right) {
+		switch left.(type) {
+		case ctypes.Tlong:
+			return csharpminor.Ocmplu
+		default:
+			return csharpminor.Ocmpu
+		}
+	}
+	return translateCmp(left)
 }
 
 // translateCmp maps comparison to typed comparison operator
