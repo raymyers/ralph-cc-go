@@ -125,12 +125,13 @@ func ComputeCalleeSaveInfo(layout *FrameLayout, usedRegs []ltl.MReg) *CalleeSave
 		SaveOffsets: make([]int64, len(usedRegs)),
 	}
 
-	// Save registers sequentially starting at CalleeSaveOffset
-	// Using positive offsets from FP (which equals SP after prologue)
-	offset := layout.CalleeSaveOffset
+	// Save registers at negative offsets from FP (below the saved FP/LR).
+	// FP points at the saved FP, with saved LR at FP+8.
+	// Callee-saved registers go below this at FP-8, FP-16, etc.
+	offset := int64(-8)
 	for i := range usedRegs {
 		info.SaveOffsets[i] = offset
-		offset += 8 // 8 bytes per register (incrementing, not decrementing)
+		offset -= 8 // 8 bytes per register, descending into stack
 	}
 
 	return info

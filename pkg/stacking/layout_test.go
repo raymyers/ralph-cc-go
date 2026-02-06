@@ -139,13 +139,13 @@ func TestComputeLayoutOffsets(t *testing.T) {
 	if layout.LocalSize != 16 {
 		t.Errorf("LocalSize = %d, want 16", layout.LocalSize)
 	}
-	// CalleeSave at +16 (after FP/LR save area at 0..15)
-	if layout.CalleeSaveOffset != 16 {
-		t.Errorf("CalleeSaveOffset = %d, want 16", layout.CalleeSaveOffset)
+	// CalleeSave at -8 (first slot below FP)
+	if layout.CalleeSaveOffset != -8 {
+		t.Errorf("CalleeSaveOffset = %d, want -8", layout.CalleeSaveOffset)
 	}
-	// Locals at +32 (after FP/LR + callee-save)
-	if layout.LocalOffset != 32 {
-		t.Errorf("LocalOffset = %d, want 32", layout.LocalOffset)
+	// Locals at -32 (below callee-saves: -16 callee-save - 16 locals)
+	if layout.LocalOffset != -32 {
+		t.Errorf("LocalOffset = %d, want -32", layout.LocalOffset)
 	}
 }
 

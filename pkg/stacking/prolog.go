@@ -65,16 +65,15 @@ func GeneratePrologue(layout *FrameLayout, calleeSave *CalleeSaveInfo) []mach.In
 	// For paired saves (STP), we save two at a time
 	regs := calleeSave.Regs
 	for i := 0; i+1 < len(regs); i += 2 {
-		// Save pair at offset from FP
-		offset := calleeSave.SaveOffsets[i]
+		// Save pair at their pre-computed offsets from FP
 		prologue = append(prologue, mach.Msetstack{
 			Src: regs[i],
-			Ofs: offset,
+			Ofs: calleeSave.SaveOffsets[i],
 			Ty:  ltl.Tlong,
 		})
 		prologue = append(prologue, mach.Msetstack{
 			Src: regs[i+1],
-			Ofs: offset + 8,
+			Ofs: calleeSave.SaveOffsets[i+1],
 			Ty:  ltl.Tlong,
 		})
 	}
@@ -94,15 +93,14 @@ func GenerateEpilogue(layout *FrameLayout, calleeSave *CalleeSaveInfo) []mach.In
 	// 1. Restore callee-saved registers (in reverse order)
 	regs := calleeSave.Regs
 	for i := len(regs) - 2; i >= 0; i -= 2 {
-		offset := calleeSave.SaveOffsets[i]
 		epilogue = append(epilogue, mach.Mgetstack{
-			Ofs:  offset,
+			Ofs:  calleeSave.SaveOffsets[i],
 			Ty:   ltl.Tlong,
 			Dest: regs[i],
 		})
 		if i+1 < len(regs) {
 			epilogue = append(epilogue, mach.Mgetstack{
-				Ofs:  offset + 8,
+				Ofs:  calleeSave.SaveOffsets[i+1],
 				Ty:   ltl.Tlong,
 				Dest: regs[i+1],
 			})

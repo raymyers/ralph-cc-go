@@ -11,6 +11,6 @@
 
 [x] csmith is installed. Learn how to use it and set up headless automation to use it to find bugs in our compiler. It should produce some sort of report we can study. Progress: `progress/CSMITH_FUZZER.md`
 
-[ ] Apply all fixes in `plan/05-fix-research-ralph/fixes` and confirm they fix the issue (if possible by re-running csmith with the same seed.)
+[x] Apply all fixes in `plan/05-fix-research-ralph/fixes` and confirm they fix the issue (if possible by re-running csmith with the same seed.) Progress: `progress/APPLY_CSMITH_FIXES.md`
 
 [ ] Where possible, address common causes systemically that are in `plan/05-fix-research-ralph/COMMON_CAUSES.md`, at design, type or testing level, make the codebase safer while continuing to pass all tests.

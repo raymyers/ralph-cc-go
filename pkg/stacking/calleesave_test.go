@@ -175,13 +175,13 @@ func TestComputeCalleeSaveInfo(t *testing.T) {
 		t.Errorf("expected 2 offsets, got %d", len(info.SaveOffsets))
 	}
 
-	// First reg at CalleeSaveOffset
-	if info.SaveOffsets[0] != layout.CalleeSaveOffset {
-		t.Errorf("SaveOffsets[0] = %d, want %d", info.SaveOffsets[0], layout.CalleeSaveOffset)
+	// First reg at -8 (just below FP)
+	if info.SaveOffsets[0] != -8 {
+		t.Errorf("SaveOffsets[0] = %d, want -8", info.SaveOffsets[0])
 	}
-	// Second reg 8 bytes higher (positive offsets from FP)
-	if info.SaveOffsets[1] != layout.CalleeSaveOffset+8 {
-		t.Errorf("SaveOffsets[1] = %d, want %d", info.SaveOffsets[1], layout.CalleeSaveOffset+8)
+	// Second reg at -16 (negative offsets, descending into stack)
+	if info.SaveOffsets[1] != -16 {
+		t.Errorf("SaveOffsets[1] = %d, want -16", info.SaveOffsets[1])
 	}
 }
 

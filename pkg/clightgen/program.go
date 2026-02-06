@@ -245,6 +245,9 @@ func transformBlock(block *cabs.Block, simplExpr *simplexpr.Transformer) clight.
 func evaluateConstantInitializer(expr cabs.Expr, typ ctypes.Type) []byte {
 	size := SizeofType(typ)
 	switch e := expr.(type) {
+	case cabs.Paren:
+		// Unwrap parenthesized expressions: (-3) -> -3
+		return evaluateConstantInitializer(e.Expr, typ)
 	case cabs.Constant:
 		val := e.Value
 		result := make([]byte, size)

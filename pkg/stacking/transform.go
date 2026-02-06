@@ -109,20 +109,10 @@ func (t *transformer) transformInst(inst linear.Instruction) []mach.Instruction 
 		return t.transformLop(i)
 
 	case linear.Lload:
-		return []mach.Instruction{mach.Mload{
-			Chunk: i.Chunk,
-			Addr:  i.Addr,
-			Args:  t.locsToRegs(i.Args),
-			Dest:  t.locToReg(i.Dest),
-		}}
+		return t.transformLload(i)
 
 	case linear.Lstore:
-		return []mach.Instruction{mach.Mstore{
-			Chunk: i.Chunk,
-			Addr:  i.Addr,
-			Args:  t.locsToRegs(i.Args),
-			Src:   t.locToReg(i.Src),
-		}}
+		return t.transformLstore(i)
 
 	case linear.Lcall:
 		return []mach.Instruction{mach.Mcall{
@@ -142,16 +132,7 @@ func (t *transformer) transformInst(inst linear.Instruction) []mach.Instruction 
 		return result
 
 	case linear.Lbuiltin:
-		var dest *ltl.MReg
-		if i.Dest != nil {
-			r := t.locToReg(*i.Dest)
-			dest = &r
-		}
-		return []mach.Instruction{mach.Mbuiltin{
-			Builtin: i.Builtin,
-			Args:    t.locsToRegs(i.Args),
-			Dest:    dest,
-		}}
+		return t.transformLbuiltin(i)
 
 	case linear.Llabel:
 		return []mach.Instruction{mach.Mlabel{Lbl: mach.Label(i.Lbl)}}
@@ -160,21 +141,10 @@ func (t *transformer) transformInst(inst linear.Instruction) []mach.Instruction 
 		return []mach.Instruction{mach.Mgoto{Target: mach.Label(i.Target)}}
 
 	case linear.Lcond:
-		return []mach.Instruction{mach.Mcond{
-			Cond: i.Cond,
-			Args: t.locsToRegs(i.Args),
-			IfSo: mach.Label(i.IfSo),
-		}}
+		return t.transformLcond(i)
 
 	case linear.Ljumptable:
-		targets := make([]mach.Label, len(i.Targets))
-		for j, lbl := range i.Targets {
-			targets[j] = mach.Label(lbl)
-		}
-		return []mach.Instruction{mach.Mjumptable{
-			Arg:     t.locToReg(i.Arg),
-			Targets: targets,
-		}}
+		return t.transformLjumptable(i)
 
 	case linear.Lreturn:
 		// Return: generate epilogue (which includes Mreturn)
@@ -261,8 +231,180 @@ func (t *transformer) transformLop(i linear.Lop) []mach.Instruction {
 	return result
 }
 
+// transformLload handles Lload instructions with possible stack slot operands
+func (t *transformer) transformLload(i linear.Lload) []mach.Instruction {
+	var result []mach.Instruction
+
+	// Load address args, handling spilled registers
+	args := t.locsToRegsWithSpill(i.Args, &result, 0)
+
+	// Handle destination - if it's a stack slot, load to temp then store
+	var destReg ltl.MReg
+	var destSlot *linear.S
+	switch loc := i.Dest.(type) {
+	case linear.R:
+		destReg = loc.Reg
+	case linear.S:
+		destReg = stackingTempRegs[0]
+		destSlot = &loc
+	default:
+		panic("unknown location type in Lload dest")
+	}
+
+	result = append(result, mach.Mload{
+		Chunk: i.Chunk,
+		Addr:  i.Addr,
+		Args:  args,
+		Dest:  destReg,
+	})
+
+	if destSlot != nil {
+		result = append(result, t.slotTrans.TranslateSetstack(linear.Lsetstack{
+			Src:  destReg,
+			Slot: destSlot.Slot,
+			Ofs:  destSlot.Ofs,
+			Ty:   destSlot.Ty,
+		}))
+	}
+
+	return result
+}
+
+// transformLstore handles Lstore instructions with possible stack slot operands
+func (t *transformer) transformLstore(i linear.Lstore) []mach.Instruction {
+	var result []mach.Instruction
+
+	// Load address args, handling spilled registers
+	args := t.locsToRegsWithSpill(i.Args, &result, 0)
+
+	// Handle source - if it's a stack slot, load it first
+	src := t.ensureInReg(i.Src, &result, len(i.Args))
+
+	result = append(result, mach.Mstore{
+		Chunk: i.Chunk,
+		Addr:  i.Addr,
+		Args:  args,
+		Src:   src,
+	})
+
+	return result
+}
+
+// transformLcond handles Lcond instructions with possible stack slot operands
+func (t *transformer) transformLcond(i linear.Lcond) []mach.Instruction {
+	var result []mach.Instruction
+
+	// Load args, handling spilled registers
+	args := t.locsToRegsWithSpill(i.Args, &result, 0)
+
+	result = append(result, mach.Mcond{
+		Cond: i.Cond,
+		Args: args,
+		IfSo: mach.Label(i.IfSo),
+	})
+
+	return result
+}
+
+// transformLjumptable handles Ljumptable instructions with possible stack slot operand
+func (t *transformer) transformLjumptable(i linear.Ljumptable) []mach.Instruction {
+	var result []mach.Instruction
+
+	// Load the index arg, handling spilled register
+	arg := t.ensureInReg(i.Arg, &result, 0)
+
+	targets := make([]mach.Label, len(i.Targets))
+	for j, lbl := range i.Targets {
+		targets[j] = mach.Label(lbl)
+	}
+
+	result = append(result, mach.Mjumptable{
+		Arg:     arg,
+		Targets: targets,
+	})
+
+	return result
+}
+
+// transformLbuiltin handles Lbuiltin instructions with possible stack slot operands
+func (t *transformer) transformLbuiltin(i linear.Lbuiltin) []mach.Instruction {
+	var result []mach.Instruction
+
+	// Load args, handling spilled registers
+	args := t.locsToRegsWithSpill(i.Args, &result, 0)
+
+	// Handle destination - if it's a stack slot, load to temp then store
+	var dest *ltl.MReg
+	var destSlot *linear.S
+	if i.Dest != nil {
+		switch loc := (*i.Dest).(type) {
+		case linear.R:
+			r := loc.Reg
+			dest = &r
+		case linear.S:
+			r := stackingTempRegs[0]
+			dest = &r
+			destSlot = &loc
+		default:
+			panic("unknown location type in Lbuiltin dest")
+		}
+	}
+
+	result = append(result, mach.Mbuiltin{
+		Builtin: i.Builtin,
+		Args:    args,
+		Dest:    dest,
+	})
+
+	if destSlot != nil && dest != nil {
+		result = append(result, t.slotTrans.TranslateSetstack(linear.Lsetstack{
+			Src:  *dest,
+			Slot: destSlot.Slot,
+			Ofs:  destSlot.Ofs,
+			Ty:   destSlot.Ty,
+		}))
+	}
+
+	return result
+}
+
+// ensureInReg loads a location into a register, generating a load if it's a stack slot.
+// tempIdx is used to select which temp register to use when multiple slots are loaded.
+// Returns the register containing the value and appends any necessary load instructions to result.
+func (t *transformer) ensureInReg(loc linear.Loc, result *[]mach.Instruction, tempIdx int) ltl.MReg {
+	switch l := loc.(type) {
+	case linear.R:
+		return l.Reg
+	case linear.S:
+		// Load from stack slot into temp register
+		if tempIdx >= len(stackingTempRegs) {
+			panic("too many stack slot arguments")
+		}
+		tempReg := stackingTempRegs[tempIdx]
+		*result = append(*result, t.slotTrans.TranslateGetstack(linear.Lgetstack{
+			Slot: l.Slot,
+			Ofs:  l.Ofs,
+			Ty:   l.Ty,
+			Dest: tempReg,
+		}))
+		return tempReg
+	default:
+		panic("unknown location type")
+	}
+}
+
+// locsToRegsWithSpill converts a slice of locations to machine registers,
+// loading stack slots into temp registers as needed.
+func (t *transformer) locsToRegsWithSpill(locs []linear.Loc, result *[]mach.Instruction, tempIdxStart int) []ltl.MReg {
+	regs := make([]ltl.MReg, len(locs))
+	for i, loc := range locs {
+		regs[i] = t.ensureInReg(loc, result, tempIdxStart+i)
+	}
+	return regs
+}
+
 // locsToRegs converts a slice of locations to machine registers
-// Panics on stack slots - caller should use transformLop for Lop instructions
+// Panics on stack slots - use locsToRegsWithSpill for instructions that may have spilled args
 func (t *transformer) locsToRegs(locs []linear.Loc) []ltl.MReg {
 	regs := make([]ltl.MReg, len(locs))
 	for i, loc := range locs {
@@ -272,15 +414,13 @@ func (t *transformer) locsToRegs(locs []linear.Loc) []ltl.MReg {
 }
 
 // locToReg converts a location to a machine register
-// Panics if the location is a stack slot (should have been handled by regalloc)
+// Panics if the location is a stack slot
 func (t *transformer) locToReg(loc linear.Loc) ltl.MReg {
 	switch l := loc.(type) {
 	case linear.R:
 		return l.Reg
 	case linear.S:
-		// Stack slots in operation args should not happen after proper regalloc
-		// For now, we panic. A full implementation would need to generate load/store.
-		panic("stack slot in register position - regalloc incomplete")
+		panic("stack slot in register position - use ensureInReg for spilled operands")
 	default:
 		panic("unknown location type")
 	}

@@ -66,21 +66,22 @@ func ComputeLayout(fn *linear.Function, calleeSaveRegs int) *FrameLayout {
 	layout.OutgoingSize = alignUp(info.OutgoingSize, 8)
 
 	// Compute offsets from FP
-	// After prologue: FP = SP, and FP/LR were saved at [SP] and [SP+8].
-	// Frame layout from FP (low to high addresses):
-	//   [FP + 0]                        : saved old FP
+	// After prologue: FP points at saved FP/LR near top of frame.
+	// Frame layout from FP (high to low addresses):
 	//   [FP + 8]                        : saved LR
-	//   [FP + 16 ... +16+CalleeSaveSize-1] : callee-saved registers
-	//   [FP + 16 + CalleeSaveSize ...]  : locals
+	//   [FP + 0]                        : saved old FP  <-- FP points here
+	//   [FP - 8 ... -CalleeSaveSize]    : callee-saved registers
+	//   [FP - CalleeSaveSize - LocalSize...] : locals
 	//
-	// Callee-save registers start at offset 16 from FP (after FP/LR)
-	layout.CalleeSaveOffset = 16
+	// Callee-save registers start at offset -8 from FP (below FP/LR)
+	layout.CalleeSaveOffset = -8
 
-	// Local variables come after FP/LR (16) + callee-saves
-	layout.LocalOffset = 16 + layout.CalleeSaveSize
+	// Local variables come below callee-saves (more negative from FP)
+	layout.LocalOffset = -layout.CalleeSaveSize - layout.LocalSize
 
-	// Outgoing arguments at the end (not typically used with this layout)
-	layout.OutgoingOffset = 16 + layout.CalleeSaveSize + layout.LocalSize
+	// Outgoing arguments at the bottom of frame (lowest addresses, near SP)
+	// These are accessed relative to SP, not FP, so we compute the FP-relative offset
+	layout.OutgoingOffset = -layout.CalleeSaveSize - layout.LocalSize - layout.OutgoingSize
 
 	// Total frame size: includes FP/LR save area (16 bytes) plus our sections
 	// This is the amount SP is decremented from old SP
