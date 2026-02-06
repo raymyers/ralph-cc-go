@@ -116,6 +116,43 @@ def run_tests() -> bool:
     return False
 
 
+def generate_commit_message(llm: "LLM") -> str:
+    """Use a small agent to generate a commit message from git diff."""
+    _, diff = sh("git diff --cached --stat && echo '---' && git diff --cached")
+    if len(diff) > 8000:
+        diff = diff[:8000] + "\n... (truncated)"
+
+    # Quick single-turn LLM call for commit message
+    from openhands.sdk import Agent, Conversation, Tool
+    from openhands.tools.terminal import TerminalTool
+
+    agent = Agent(llm=llm, tools=[Tool(name=TerminalTool.name)])
+    conv = Conversation(agent=agent, workspace=os.getcwd())
+    conv.send_message(  # type: ignore[attr-defined]
+        f"""Generate a git commit message for these changes. Format:
+<type>(<scope>): <subject>
+
+<body>
+
+Where type is fix/feat/refactor, scope is the component, subject is ~50 chars.
+Body should be 2-3 bullet points of what was fixed.
+
+Diff:
+```
+{diff}
+```
+
+Reply with ONLY the commit message, nothing else."""
+    )
+    conv.run()  # type: ignore[attr-defined]
+
+    # Extract final response
+    from openhands.sdk.conversation.response_utils import get_agent_final_response
+
+    msg = get_agent_final_response(conv.state.events) or "fix: HANS automated fixes"  # type: ignore[attr-defined]
+    return msg.strip()
+
+
 # =============================================================================
 # Agent Factory Functions
 # =============================================================================
@@ -584,7 +621,21 @@ Collect results and report what was fixed."""
         console.print(f"[dim]{diff[:300]}[/dim]")
 
         if run_tests() and not args.no_commit:
-            git_commit_and_push(f"fix(compiler): HANS {phase} - {len(tasks)} agents")
+            # Stage changes first so generate_commit_message can see them
+            sh("git add -A")
+            console.print("[dim]Generating commit message...[/dim]")
+            commit_msg = generate_commit_message(llm)
+            console.print(f"[dim]{commit_msg[:200]}...[/dim]")
+            # Commit (already staged) and push
+            code, _ = sh(f'git commit -m "{commit_msg}"')
+            if code == 0:
+                console.print("[green]✓ Committed[/green]")
+                code, _ = sh("git push origin main")
+                console.print(
+                    "[green]✓ Pushed[/green]"
+                    if code == 0
+                    else "[yellow]⚠ Push failed[/yellow]"
+                )
         elif args.no_commit:
             console.print("[yellow]--no-commit: skipping[/yellow]")
         else:
