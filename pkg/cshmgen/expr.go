@@ -24,6 +24,9 @@ type ExprTranslator struct {
 	stringCounter int
 	// strings collects all string literals for later emission
 	strings []StringLiteral
+	// paramTemps maps modified parameter names to their shadow temp IDs
+	// This is set externally when parameters are modified
+	paramTemps map[string]int
 }
 
 // NewExprTranslator creates a new expression translator.
@@ -31,7 +34,12 @@ func NewExprTranslator(globals map[string]bool) *ExprTranslator {
 	if globals == nil {
 		globals = make(map[string]bool)
 	}
-	return &ExprTranslator{globals: globals, stringCounter: 0, strings: nil}
+	return &ExprTranslator{globals: globals, stringCounter: 0, strings: nil, paramTemps: make(map[string]int)}
+}
+
+// SetParamTemps sets the parameter-to-temp mapping for reading modified parameters.
+func (t *ExprTranslator) SetParamTemps(temps map[string]int) {
+	t.paramTemps = temps
 }
 
 // GetStrings returns all collected string literals.
@@ -109,7 +117,12 @@ func (t *ExprTranslator) translateString(e clight.Estring) csharpminor.Expr {
 
 // translateVar translates a variable reference.
 // In Clight, Evar is always a memory location. We produce an Evar (global reference).
+// For modified parameters, we read from the shadow temp instead.
 func (t *ExprTranslator) translateVar(e clight.Evar) csharpminor.Expr {
+	// Check if this is a modified parameter that should read from a temp
+	if tempID, ok := t.paramTemps[e.Name]; ok {
+		return csharpminor.Etempvar{ID: tempID}
+	}
 	return csharpminor.Evar{Name: e.Name}
 }
 

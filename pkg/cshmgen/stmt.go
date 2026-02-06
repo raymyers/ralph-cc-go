@@ -14,6 +14,9 @@ type StmtTranslator struct {
 	exprTr     *ExprTranslator
 	loopDepth  int // current loop nesting depth
 	blockDepth int // current block nesting depth (for break/continue)
+	params     map[string]bool // function parameter names
+	paramTemps map[string]int  // parameter name -> temp ID for modified params
+	nextTempID int             // next available temp ID for param copies
 }
 
 // NewStmtTranslator creates a new statement translator.
@@ -22,7 +25,43 @@ func NewStmtTranslator(exprTr *ExprTranslator) *StmtTranslator {
 		exprTr:     exprTr,
 		loopDepth:  0,
 		blockDepth: 0,
+		params:     make(map[string]bool),
+		paramTemps: make(map[string]int),
+		nextTempID: 0,
 	}
+}
+
+// SetParams sets the function parameter names so parameter assignments can be handled correctly.
+func (t *StmtTranslator) SetParams(params []string) {
+	for _, p := range params {
+		t.params[p] = true
+	}
+}
+
+// SetNextTempID sets the next available temp ID (should be after any temps from simplexpr).
+func (t *StmtTranslator) SetNextTempID(id int) {
+	t.nextTempID = id
+}
+
+// GetParamTemps returns the mapping of modified parameters to their temp IDs.
+func (t *StmtTranslator) GetParamTemps() map[string]int {
+	return t.paramTemps
+}
+
+// isParam returns true if the given name is a function parameter.
+func (t *StmtTranslator) isParam(name string) bool {
+	return t.params[name]
+}
+
+// getOrCreateParamTemp returns the temp ID for a parameter, creating one if needed.
+func (t *StmtTranslator) getOrCreateParamTemp(name string) int {
+	if id, ok := t.paramTemps[name]; ok {
+		return id
+	}
+	id := t.nextTempID
+	t.nextTempID++
+	t.paramTemps[name] = id
+	return id
 }
 
 // TranslateStmt translates a Clight statement to a Csharpminor statement.
@@ -75,9 +114,21 @@ func (t *StmtTranslator) TranslateStmt(s clight.Stmt) csharpminor.Stmt {
 
 // translateAssign translates an assignment to a memory location.
 // Clight: lhs = rhs (where lhs is Evar, Ederef, or Efield)
-// Csharpminor: Sstore(chunk, addr, value)
+// Csharpminor: Sstore(chunk, addr, value) for locals, Sset for parameters
 func (t *StmtTranslator) translateAssign(s clight.Sassign) csharpminor.Stmt {
 	value := t.exprTr.TranslateExpr(s.RHS)
+	
+	// Check if this is an assignment to a function parameter
+	if evar, ok := s.LHS.(clight.Evar); ok && t.isParam(evar.Name) {
+		// Parameters don't have addresses in the same way locals do.
+		// We assign to a temp that shadows the parameter.
+		tempID := t.getOrCreateParamTemp(evar.Name)
+		return csharpminor.Sset{
+			TempID: tempID,
+			RHS:    value,
+		}
+	}
+	
 	addr, chunk := t.translateLvalue(s.LHS)
 	return csharpminor.Sstore{
 		Chunk: chunk,
