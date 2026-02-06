@@ -19,3 +19,4 @@ out/
 
 # Object files
 *.o
+csmith-reports/
