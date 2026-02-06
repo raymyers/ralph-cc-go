@@ -2,6 +2,7 @@ plan/*/logs
 bin/
 coverage/
 out/
+checkouts/
 
 # Debug phase output suffixes (from docs/PHASES.md)
 *.parsed.c

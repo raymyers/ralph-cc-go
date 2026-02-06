@@ -19,4 +19,4 @@
 
 [x] Make `plan/06-regression-ralph/scripts/regression.sh` pass by investigating and fixing the issues. Progress: `progress/FIX_REGRESSION.md`
 
-[ ] Clone sqlite into a new gitignore `checkouts` folder. We are going to make it build. Likely requiring many changes to the compiler. Populate `plan/07-sqlite-ralph/PLAN.md` with checklists broken into milestone sections. Steps should lean heavily on the automated feedback guiding the process. Consider designating ongoing notes areas in `plan/07-sqlite-ralph` subfolders.
+[x] Clone sqlite into a new gitignore `checkouts` folder. We are going to make it build. Likely requiring many changes to the compiler. Populate `plan/07-sqlite-ralph/PLAN.md` with checklists broken into milestone sections. Steps should lean heavily on the automated feedback guiding the process. Consider designating ongoing notes areas in `plan/07-sqlite-ralph` subfolders. Progress: `progress/SQLITE_SETUP.md`
