@@ -36,7 +36,9 @@ type Parser struct {
 	peekToken     lexer.Token
 	peekPeekToken lexer.Token
 	errors        []string
-	typedefs      map[string]bool // typedef names in scope
+	typedefs      map[string]bool   // typedef names in scope
+	inlineDefs    []cabs.Definition // inline struct/union definitions collected during parsing
+	anonCounter   int               // counter for generating anonymous struct/union names
 }
 
 // New creates a new Parser for the given lexer
@@ -453,6 +455,90 @@ func (p *Parser) parseStructBody(name string, isUnion bool) cabs.Definition {
 	if p.curTokenIs(lexer.TokenSemicolon) {
 		p.nextToken()
 	}
+
+	if isUnion {
+		return cabs.UnionDef{Name: name, Fields: fields}
+	}
+	return cabs.StructDef{Name: name, Fields: fields}
+}
+
+// parseInlineStructBody parses the body of an inline struct/union definition
+// within a field declaration. Similar to parseStructBody but doesn't expect
+// a trailing semicolon (the field declaration will have its own semicolon).
+func (p *Parser) parseInlineStructBody(name string, isUnion bool) cabs.Definition {
+	p.nextToken() // consume '{'
+
+	var fields []cabs.StructField
+
+	for !p.curTokenIs(lexer.TokenRBrace) && !p.curTokenIs(lexer.TokenEOF) {
+		// Parse field: type name;
+		if !p.isTypeSpecifier() && !p.isTypeQualifier() {
+			p.addError(fmt.Sprintf("expected type specifier in struct field, got %s", p.curToken.Type))
+			p.nextToken()
+			continue
+		}
+
+		// Skip type qualifiers
+		for p.isTypeQualifier() {
+			p.nextToken()
+		}
+
+		typeSpec := p.parseCompoundTypeSpecifier()
+
+		// Handle pointer types with optional qualifiers
+		for p.curTokenIs(lexer.TokenStar) {
+			typeSpec = typeSpec + "*"
+			p.nextToken()
+			// Skip type qualifiers after pointer (const, volatile, restrict)
+			for p.isTypeQualifier() {
+				p.nextToken()
+			}
+		}
+
+		// Check for function pointer field: type (*name)(params)
+		if p.curTokenIs(lexer.TokenLParen) && p.peekTokenIs(lexer.TokenStar) {
+			field := p.parseFunctionPointerField(typeSpec)
+			if field != nil {
+				fields = append(fields, *field)
+			}
+			continue
+		}
+
+		// Field name
+		if !p.curTokenIs(lexer.TokenIdent) {
+			p.addError(fmt.Sprintf("expected field name, got %s", p.curToken.Type))
+			continue
+		}
+		fieldName := p.curToken.Literal
+		p.nextToken()
+
+		// Handle array fields
+		for p.curTokenIs(lexer.TokenLBracket) {
+			p.nextToken() // consume '['
+			for !p.curTokenIs(lexer.TokenRBracket) && !p.curTokenIs(lexer.TokenEOF) {
+				p.nextToken()
+			}
+			if p.curTokenIs(lexer.TokenRBracket) {
+				p.nextToken()
+			}
+			typeSpec = typeSpec + "[]"
+		}
+
+		fields = append(fields, cabs.StructField{TypeSpec: typeSpec, Name: fieldName})
+
+		// Expect semicolon
+		if !p.expect(lexer.TokenSemicolon) {
+			continue
+		}
+	}
+
+	if !p.curTokenIs(lexer.TokenRBrace) {
+		p.addError(fmt.Sprintf("expected '}' at end of struct body, got %s", p.curToken.Type))
+		return nil
+	}
+	p.nextToken() // consume '}'
+
+	// NOTE: No trailing semicolon consumption here - the parent field will handle that
 
 	if isUnion {
 		return cabs.UnionDef{Name: name, Fields: fields}
@@ -1397,14 +1483,36 @@ func (p *Parser) parseCompoundTypeSpecifier() string {
 
 	// Handle struct/union/enum types specially
 	if p.curToken.Type == lexer.TokenStruct || p.curToken.Type == lexer.TokenUnion || p.curToken.Type == lexer.TokenEnum {
-		typeSpec := p.curToken.Literal
+		isUnion := p.curToken.Type == lexer.TokenUnion
+		typeKeyword := p.curToken.Literal // "struct" or "union"
 		p.nextToken()
+
+		var tagName string
 		// Handle struct/union/enum name
 		if p.curTokenIs(lexer.TokenIdent) {
-			typeSpec = typeSpec + " " + p.curToken.Literal
+			tagName = p.curToken.Literal
 			p.nextToken()
 		}
-		return typeSpec
+
+		// Check for inline struct/union body definition
+		if p.curTokenIs(lexer.TokenLBrace) && p.curToken.Type != lexer.TokenEnum {
+			// This is an inline struct/union definition
+			// Generate anonymous name if none provided
+			if tagName == "" {
+				tagName = fmt.Sprintf("__anon_%d", p.anonCounter)
+				p.anonCounter++
+			}
+			// Parse the struct body (this consumes { ... } but NOT trailing ; since we're mid-field)
+			def := p.parseInlineStructBody(tagName, isUnion)
+			if def != nil {
+				p.inlineDefs = append(p.inlineDefs, def)
+			}
+		}
+
+		if tagName != "" {
+			return typeKeyword + " " + tagName
+		}
+		return typeKeyword
 	}
 
 	// Handle typedef names (not compound)
@@ -2693,6 +2801,12 @@ func (p *Parser) ParseProgram() *cabs.Program {
 	for !p.curTokenIs(lexer.TokenEOF) {
 		def := p.ParseDefinition()
 		if def != nil {
+			// Insert any inline definitions collected during parsing BEFORE the definition
+			// that contains them, so they're declared before use
+			if len(p.inlineDefs) > 0 {
+				program.Definitions = append(program.Definitions, p.inlineDefs...)
+				p.inlineDefs = nil // reset for next definition
+			}
 			program.Definitions = append(program.Definitions, def)
 		} else {
 			// Skip to next definition on error

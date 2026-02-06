@@ -199,3 +199,18 @@ tests:
   - name: "multiple declarations"
     input: |
       int f() { int x = 1, y = 2, z = 3; return x + y + z; }
+
+  - name: "inline struct in field (named)"
+    input: |
+      struct outer { int n; struct inner { int x; int y; } *ptr; };
+      int f() { return 0; }
+
+  - name: "inline struct in field (anonymous)"
+    input: |
+      struct outer { int n; struct { int x; int y; } data; };
+      int f() { return 0; }
+
+  - name: "multiple inline structs in field"
+    input: |
+      struct info { struct a { int x; } *pa; struct b { int y; } *pb; int count; };
+      int f() { return 0; }

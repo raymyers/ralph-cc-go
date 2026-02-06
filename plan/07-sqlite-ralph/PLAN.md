@@ -57,7 +57,7 @@ Each milestone has verification command to know when complete.
 
 [ ] 2.5 Handle inline functions - `inline` and `static inline`. Progress: `progress/INLINE.md`
 
-[ ] 2.6 Handle anonymous structs/unions - Nested unnamed struct/union members. Progress: `progress/ANON_STRUCT.md`
+[x] 2.6 Handle inline struct/union definitions in fields - `struct { int x; } field;` and `struct name { ... } *ptr;`. Progress: `progress/INLINE_STRUCT_FIELD.md`
 
 [ ] 2.7 Handle flexible array members - `struct { int n; char data[]; }`. Progress: `progress/FLEX_ARRAY.md`
 
