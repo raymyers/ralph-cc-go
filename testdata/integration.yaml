@@ -75,6 +75,16 @@ tests:
       typedef const char *cstr;
       cstr f() { return "hello"; }
 
+  - name: "function pointer typedef"
+    input: |
+      typedef int (*callback)(void*, int);
+      int call(callback cb) { return cb(0, 42); }
+
+  - name: "function pointer typedef with multiple params"
+    input: |
+      typedef int (*multi_callback)(void*, int, char**, char**);
+      int f(multi_callback cb) { return cb(0, 0, 0, 0); }
+
   - name: "enum"
     input: |
       enum Color { RED, GREEN, BLUE };

@@ -938,6 +938,11 @@ func (p *Parser) parseTypedef() cabs.Definition {
 		}
 	}
 
+	// Check for function pointer typedef: typedef int (*name)(params);
+	if p.curTokenIs(lexer.TokenLParen) && p.peekTokenIs(lexer.TokenStar) {
+		return p.parseFunctionPointerTypedef(typeSpec)
+	}
+
 	if !p.curTokenIs(lexer.TokenIdent) {
 		p.addError(fmt.Sprintf("expected typedef name, got %s", p.curToken.Type))
 		return nil
@@ -969,6 +974,89 @@ func (p *Parser) parseTypedef() cabs.Definition {
 	if !p.expect(lexer.TokenSemicolon) {
 		return nil
 	}
+
+	// Register the typedef name
+	p.typedefs[name] = true
+
+	return cabs.TypedefDef{TypeSpec: typeSpec, Name: name}
+}
+
+// parseFunctionPointerTypedef parses a function pointer typedef: typedef returnType (*name)(params);
+// It expects to be positioned at '(' with peek at '*'
+func (p *Parser) parseFunctionPointerTypedef(returnType string) cabs.Definition {
+	p.nextToken() // consume '('
+	p.nextToken() // consume '*'
+
+	// Typedef name
+	if !p.curTokenIs(lexer.TokenIdent) {
+		p.addError(fmt.Sprintf("expected function pointer typedef name, got %s", p.curToken.Type))
+		return nil
+	}
+	name := p.curToken.Literal
+	p.nextToken()
+
+	// Expect ')'
+	if !p.expect(lexer.TokenRParen) {
+		return nil
+	}
+
+	// Expect '(' for parameter list
+	if !p.curTokenIs(lexer.TokenLParen) {
+		p.addError(fmt.Sprintf("expected '(' for function pointer parameters, got %s", p.curToken.Type))
+		return nil
+	}
+	p.nextToken() // consume '('
+
+	// Parse parameter types
+	var paramTypes []string
+	for !p.curTokenIs(lexer.TokenRParen) && !p.curTokenIs(lexer.TokenEOF) {
+		// Skip type qualifiers
+		for p.isTypeQualifier() {
+			p.nextToken()
+		}
+
+		if p.curTokenIs(lexer.TokenRParen) {
+			break
+		}
+
+		// Parse type specifier
+		paramType := p.parseCompoundTypeSpecifier()
+
+		// Handle pointer types
+		for p.curTokenIs(lexer.TokenStar) {
+			paramType = paramType + "*"
+			p.nextToken()
+			// Skip type qualifiers after pointer
+			for p.isTypeQualifier() {
+				p.nextToken()
+			}
+		}
+
+		// Skip parameter name if present
+		if p.curTokenIs(lexer.TokenIdent) {
+			p.nextToken()
+		}
+
+		paramTypes = append(paramTypes, paramType)
+
+		// Check for comma
+		if p.curTokenIs(lexer.TokenComma) {
+			p.nextToken()
+		}
+	}
+
+	// Expect ')'
+	if !p.expect(lexer.TokenRParen) {
+		return nil
+	}
+
+	// Expect ';'
+	if !p.expect(lexer.TokenSemicolon) {
+		return nil
+	}
+
+	// Build the function pointer type string: returnType(*)(paramTypes)
+	typeSpec := returnType + "(*)(" + joinParamTypes(paramTypes) + ")"
 
 	// Register the typedef name
 	p.typedefs[name] = true
