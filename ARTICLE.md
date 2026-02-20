@@ -20,7 +20,7 @@ That's it. No state machine. No safety rails. No memory system. Just a loop that
 
 This sounds absurd. And yet, Ralph has been used to build real software—including entire programming languages and commercial application clones. The technique went viral. Anthropic created an official plugin. Y Combinator startups adopted it.
 
-This article takes a different approach than the typical Ralph explainer. Instead of describing the philosophy in the abstract, we're going to walk through a concrete implementation: [ralph-cc-go](https://github.com/raymyers/ralph-cc-go), an experiment in building a C compiler using the Ralph technique with the OpenHands agent. This project was created by [Ray Myers](https://github.com/raymyers), who began the experiment on February 1, 2026—four days before Anthropic published their own parallel exploration, ["Building a C compiler with a team of parallel Claudes"](https://www.anthropic.com/engineering/building-c-compiler). While both projects share the ambitious goal of AI-driven compiler construction, they represent independent approaches: Anthropic's work used 16 parallel Claude agents and $20,000 in API costs to build a 100,000-line Rust compiler, while Myers' ralph-cc-go explores the same territory using the simpler Ralph loop technique with OpenHands.
+This article takes a different approach than the typical Ralph explainer. Instead of describing the philosophy in the abstract, we're going to walk through a concrete implementation: [ralph-cc-go](https://github.com/raymyers/ralph-cc-go), an experiment in building a C compiler using the Ralph technique with the OpenHands agent. This project was created by [Ray Myers](https://github.com/raymyers), who began the experiment on February 1, 2026—four days before Anthropic published their own parallel exploration, ["Building a C compiler with a team of parallel Claudes"](https://www.anthropic.com/engineering/building-c-compiler). While both projects share the ambitious goal of AI-driven compiler construction, they represent independent approaches: Anthropic's work used 16 parallel Claude agents and $20,000 in API costs to build a 100,000-line Rust compiler, while Ray's ralph-cc-go explores the same territory using the simpler Ralph loop technique with OpenHands.
 
 We'll examine the actual commits. We'll see what the RALPH.md prompts looked like and how they evolved. We'll watch the agent tackle 126 parser tasks in three hours, create its own implementation plans, and systematically debug issues discovered through fuzz testing.
 
@@ -124,8 +124,8 @@ plan/
 ├── 01-cli-ralph/      # Initial implementation
 ├── 02-e2e-ralph/      # End-to-end testing
 ├── 03-pop-ralph/      # Making real programs work
-├── 04-learn/          # (unused)
-├── 05-fix-research-ralph/  # Bug research (read-only)
+├── 04-learn/          # Analyze agent logs for process improvement 
+├── 05-fix-research-ralph/  # Bug research from fuzzer findings (read-only)
 ├── 06-regression-ralph/    # Regression testing
 ├── 07-sqlite-ralph/        # SQLite compilation
 └── 08-parallel-sdk-triage/ # Parallel agent orchestration
@@ -1240,7 +1240,7 @@ Then get out of the way and let Ralph ralph.
 
 ## Conclusion
 
-The ralph-cc-go experiment demonstrates that the RALPH technique can produce a non-trivial, working software project—a C-to-ARM64 compiler with 26 packages and comprehensive test coverage—with minimal human intervention.
+The ralph-cc-go experiment demonstrates that the RALPH technique can produce a non-trivial software project—a C-to-ARM64 compiler with 26 packages and comprehensive test coverage—with minimal human intervention. The compiler is shown to work on a number of small programs and has a clear path for further hardening as desired.
 
 The key mechanisms are:
 
